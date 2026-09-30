@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store'
+import { launchHostWritesLaunchFile } from '@/lib/launch-file-host'
 import { buildAgentStartupPlan } from '@/lib/tui-agent-startup'
 import type {
   LaunchAgentBackgroundSessionArgs,
@@ -83,7 +84,9 @@ export async function launchAgentBackgroundSession(
   const hasPrompt = trimmedPrompt.length > 0
   const isFollowupPath = requireTuiAgentConfig(agent).promptInjectionMode === 'stdin-after-start'
 
-  const pasteDraftAfterLaunch = hasPrompt && isFollowupPath ? trimmedPrompt : null
+  // Route by the worktree's owner host, not the focused runtime.
+  const ownerSettings = getSettingsForWorktreeRuntimeOwner(store, worktreeId)
+  const runtimeTarget = getActiveRuntimeTarget(ownerSettings)
   const startupPlan = buildAgentStartupPlan({
     agent,
     prompt: hasPrompt && !isFollowupPath ? trimmedPrompt : '',
@@ -93,11 +96,15 @@ export async function launchAgentBackgroundSession(
     platform: launchPlatform,
     shell: startupShell,
     isRemote,
+    hostWritesLaunchFile: launchHostWritesLaunchFile(ownerSettings),
     allowEmptyPromptLaunch: !hasPrompt || isFollowupPath
   })
   if (!startupPlan) {
     return null
   }
+  // A prompt the host could not be sent in a launch file waits for the paste, as a stdin agent's does.
+  const promptLeftForPaste = hasPrompt && !isFollowupPath ? startupPlan.followupPrompt : null
+  let pasteDraftAfterLaunch = hasPrompt && isFollowupPath ? trimmedPrompt : promptLeftForPaste
 
   // A hidden run tab must never be store-visible without its PTY (#2989).
   const { reservedTabId, leafId, launchToken, launchRegistration, paneEnv } =
@@ -110,10 +117,6 @@ export async function launchAgentBackgroundSession(
     })
   let paneKey = makePaneKey(reservedTabId, leafId)
   const sshConnectionId = launchHost.connectionId
-  // Route by the worktree's owner host, not the focused runtime.
-  const runtimeTarget = getActiveRuntimeTarget(
-    getSettingsForWorktreeRuntimeOwner(store, worktreeId)
-  )
   let ptyId = '',
     runtimeTerminalHandle: string | null = null
   // What the local spawn answered and later steps still need: which lifetime of `ptyId` this launch
@@ -177,9 +180,14 @@ export async function launchAgentBackgroundSession(
             : {}),
           launchConfig: startupPlan.launchConfig,
           launchToken,
-          ...(title ? { title } : {})
+          ...(title ? { title } : {}),
+          ...(promptLeftForPaste !== null ? { promptLeftForPaste: true } : {})
         }
       })
+      if (promptLeftForPaste !== null && !created.promptLeftForPaste) {
+        // The host was sent the prompt itself and delivered it.
+        pasteDraftAfterLaunch = null
+      }
       runtimeTerminalHandle = created.terminal.handle
       ptyId = toRemoteRuntimePtyId(runtimeTerminalHandle, runtimeTarget.environmentId)
     } else {

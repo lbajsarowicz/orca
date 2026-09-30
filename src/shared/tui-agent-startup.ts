@@ -64,6 +64,9 @@ export function buildAgentStartupPlan(args: {
   isRemote?: boolean
   /** The file `prompt` points at, when the caller already moved the prompt into one. */
   launchFile?: LaunchFile
+  /** False for a paired host, which is sent a command and never a launch file: a prompt that would
+   *  need one launches clean and is left in `followupPrompt` for the paste after ready. */
+  hostWritesLaunchFile?: boolean
 }): AgentStartupPlan | null {
   const { agent, prompt, cmdOverrides, platform, allowEmptyPromptLaunch = false } = args
   const shell = resolveStartupShell(platform, args.shell)
@@ -92,22 +95,26 @@ export function buildAgentStartupPlan(args: {
     agentCommand: baseCommand.commandWithoutSessionOptions
   })
 
-  if (!trimmedPrompt) {
-    if (!allowEmptyPromptLaunch) {
+  const lineFile = trimmedPrompt ? windowsPromptLaunchFile(trimmedPrompt, shell) : null
+  const pasteInstead =
+    lineFile !== null &&
+    args.hostWritesLaunchFile === false &&
+    config.promptInjectionMode !== 'hermes-query'
+  if (!trimmedPrompt || pasteInstead) {
+    if (!trimmedPrompt && !allowEmptyPromptLaunch) {
       return null
     }
     return {
       agent,
       launchCommand,
       expectedProcess: config.expectedProcess,
-      followupPrompt: null,
+      followupPrompt: pasteInstead ? trimmedPrompt : null,
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
       ...(args.agentEnv ? { env: { ...args.agentEnv } } : {})
     }
   }
 
-  const lineFile = windowsPromptLaunchFile(trimmedPrompt, shell)
   const launchFile = lineFile?.launchFile ?? args.launchFile
   const quotedPrompt = quoteStartupArg(lineFile?.prompt ?? trimmedPrompt, shell)
   const fileProps = launchFileProps(launchFile, shell)

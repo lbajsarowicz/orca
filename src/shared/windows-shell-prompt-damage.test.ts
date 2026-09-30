@@ -45,4 +45,18 @@ describe('a prompt a Windows shell would damage on the launch line', () => {
       `The full task is in the file \`${path}\`. Read it and complete the task it describes.`
     )
   })
+
+  it('launches clean and leaves the prompt for the paste when the host writes no launch file', () => {
+    const startup = buildAgentStartupPlan({
+      agent: 'claude',
+      prompt: 'fix the build\nthen run the tests',
+      cmdOverrides: {},
+      platform: 'win32',
+      shell: 'powershell',
+      hostWritesLaunchFile: false
+    })
+    expect(startup?.launchFile).toBeUndefined()
+    expect(startup?.launchCommand).toBe('claude')
+    expect(startup?.followupPrompt).toBe('fix the build\nthen run the tests')
+  })
 })

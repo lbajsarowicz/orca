@@ -22,6 +22,7 @@ import { planAgentSessionLaunch } from '@/lib/agent-session-launch-plan'
 import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
 import { getNewWorkspaceProjectGroupHostId } from '@/lib/new-workspace-project-options'
 import { useAppStore } from '@/store'
+import { launchHostWritesLaunchFile } from '@/lib/launch-file-host'
 import {
   buildFolderWorkspaceLinkedStartupPlan,
   getFolderWorkspaceAgentLaunchPlatform,
@@ -124,6 +125,9 @@ export async function submitFolderWorkspaceCreate({
             platform: launchPlatform,
             shell: launchShell,
             isRemote: launchIsRemote,
+            hostWritesLaunchFile: launchHostWritesLaunchFile({
+              activeRuntimeEnvironmentId: runtimeEnvironmentId
+            }),
             allowEmptyPromptLaunch: true
           })
         : null
