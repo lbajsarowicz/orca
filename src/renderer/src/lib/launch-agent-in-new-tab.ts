@@ -307,7 +307,8 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
       worktreeId,
       tabId: tab.id,
       agent,
-      submitted: submitPastedPrompt
+      submitted: submitPastedPrompt,
+      content: pasteDraftAfterLaunch
     })
     const deliveryPromise = deliverLaunchPromptToAgentTab({
       tabId: tab.id,
@@ -317,12 +318,7 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
       forcePaste: true,
       onTimeout: timeoutNotice.onTimeout,
       ...(onPromptDeliveryUnconfirmed ? { onUnconfirmedDelivery: onPromptDeliveryUnconfirmed } : {})
-    }).then((delivered) => {
-      if (delivered) {
-        onPromptDelivered?.()
-      }
-      return { delivered, failureNotified: !delivered && timeoutNotice.wasNotified() }
-    })
+    }).then((delivered) => timeoutNotice.settle(delivered, onPromptDelivered))
     if (promptDelivery === 'submit-after-ready') {
       promptDeliveryResult = deliveryPromise
     } else {

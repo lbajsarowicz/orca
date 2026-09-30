@@ -722,7 +722,9 @@ describe('launchAgentInNewTab', () => {
     )
   })
 
-  it('does not track prompt-sent when submit-after-ready delivery fails', async () => {
+  // Why: a paste that fails without reaching the readiness-timeout branch was silent (live on WSL:
+  // an empty composer, delivered false, nothing shown).
+  it('tells the user, with the prompt to copy, when a paste fails outside the timeout branch', async () => {
     mockPasteDraftWhenAgentReady.mockResolvedValue(false)
     const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
 
@@ -734,11 +736,15 @@ describe('launchAgentInNewTab', () => {
     })
     await expect(result?.promptDeliveryResult).resolves.toEqual({
       delivered: false,
-      failureNotified: false
+      failureNotified: true
     })
     await Promise.resolve()
 
     expect(mockTrack).not.toHaveBeenCalledWith('agent_prompt_sent', expect.anything())
+    expect(mockToastMessage).toHaveBeenCalledWith(
+      expect.stringContaining("wasn't sent"),
+      expect.objectContaining({ action: expect.objectContaining({ label: 'Copy prompt' }) })
+    )
   })
 
   it('marks failed submit-after-ready delivery as notified after readiness timeout toast', async () => {
@@ -761,7 +767,8 @@ describe('launchAgentInNewTab', () => {
       failureNotified: true
     })
     expect(mockToastMessage).toHaveBeenCalledWith(
-      "Your prompt wasn't sent — paste it once the agent is ready."
+      "The agent started, but your prompt wasn't sent. Copy it and paste it once the agent is ready.",
+      expect.objectContaining({ action: expect.objectContaining({ label: 'Copy prompt' }) })
     )
   })
 

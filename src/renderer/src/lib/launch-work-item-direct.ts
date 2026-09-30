@@ -1,3 +1,4 @@
+import { showAgentLaunchPromptNotDeliveredNotice } from '@/lib/agent-launch-prompt-not-delivered-notice'
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import {
@@ -327,7 +328,10 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
       content: draftContent,
       submit,
       forcePaste: submit,
-      onTimeout: () => notifyDirectWorkItemAgentStartTimeout(agent, submit)
+      onTimeout: () =>
+        submit
+          ? showAgentLaunchPromptNotDeliveredNotice({ agent, prompt: draftContent })
+          : notifyDirectWorkItemAgentStartTimeout(agent, submit)
     })
   }
   return true
