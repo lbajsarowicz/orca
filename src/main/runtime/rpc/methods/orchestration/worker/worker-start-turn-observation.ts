@@ -224,8 +224,10 @@ function blockedLaunchObservation(
     blockedReason,
     reason:
       `Agent startup blocked: ${describeTerminalWaitBlockedReason(blockedReason)}. The task is ` +
-      "already on the agent's command line, so it runs once the dialog is answered in the " +
-      "worker's terminal, and its report settles this Dispatch. Otherwise abandon the Dispatch."
+      "already on the agent's command line. If the user answers the dialog in the worker's " +
+      'terminal, the agent runs it and its report settles this Dispatch. Otherwise stop the ' +
+      'worker with worker-stop, which closes that terminal so the task cannot run later; ' +
+      'abandoning would leave it armed there while a retry runs the task again.'
   }
 }
 

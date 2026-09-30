@@ -140,7 +140,10 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
         `orca orchestration worker-show --dispatch ${args.dispatchId} --json`,
         // A structured worker has no screen to read.
         ...(structuredSession ? [] : [`orca terminal read --terminal ${terminalHandle} --screen`]),
-        `orca orchestration worker-abandon --dispatch ${args.dispatchId} --json`
+        // Why stop, not abandon: the brief stays armed behind the dialog until its terminal closes.
+        turnStart.blockedReason
+          ? `orca orchestration worker-stop --dispatch ${args.dispatchId} --json`
+          : `orca orchestration worker-abandon --dispatch ${args.dispatchId} --json`
       ],
       ...(args.terminalRevealWarning ? { warning: args.terminalRevealWarning } : {})
     }

@@ -185,9 +185,12 @@ describe('worker-start with the brief on the launch command line', () => {
     })
     const task = h.db.createTask({ spec: 'blocked launch', runId: h.activeRunId })
 
-    await expect(
-      h.call('orchestration.workerStart', { task: task.id, from: 'term_coord', agent: 'codex' })
-    ).resolves.toMatchObject({
+    const receipt = await h.call('orchestration.workerStart', {
+      task: task.id,
+      from: 'term_coord',
+      agent: 'codex'
+    })
+    expect(receipt).toMatchObject({
       state: 'outcome_unknown',
       stage: 'turn_start_blocked',
       lastError: expect.stringContaining('Agent startup blocked: codex-update-prompt')
@@ -197,6 +200,43 @@ describe('worker-start with the brief on the launch command line', () => {
         .prepare('SELECT capability_hash FROM dispatch_contexts WHERE task_id = ?')
         .get(task.id)
     ).toEqual({ capability_hash: expect.any(String) })
+  })
+
+  // Why stop, not abandon: abandon frees the task for a retry but leaves the brief armed behind
+  // the dialog, so answering it later would run the task twice.
+  it('steers a blocked start to worker-stop, which closes the terminal holding the brief', async () => {
+    h.setup()
+    vi.mocked(h.runtime.observeTerminalLaunchTurnStart).mockReturnValue(new Promise(() => {}))
+    vi.mocked(h.runtime.waitForTerminal).mockResolvedValue({
+      handle: 'term_worker',
+      condition: 'tui-idle',
+      satisfied: false,
+      status: 'running',
+      exitCode: null,
+      blockedReason: 'codex-update-prompt'
+    })
+    const task = h.db.createTask({ spec: 'blocked launch', runId: h.activeRunId })
+    const receipt = await h.call('orchestration.workerStart', {
+      task: task.id,
+      from: 'term_coord',
+      agent: 'codex'
+    })
+    expect(receipt).toMatchObject({
+      nextCommands: expect.arrayContaining([
+        expect.stringMatching(/^orca orchestration worker-stop --dispatch \S+ --json$/)
+      ]),
+      lastError: expect.stringMatching(/If the user answers the dialog.*worker-stop/)
+    })
+    expect(JSON.stringify(receipt)).not.toContain('worker-abandon')
+    if (typeof receipt !== 'object' || receipt === null || !('dispatchId' in receipt)) {
+      throw new Error('worker-start returned no dispatch')
+    }
+    const dispatchId = String(receipt.dispatchId)
+
+    await expect(
+      h.call('orchestration.workerStop', { dispatch: dispatchId })
+    ).resolves.toMatchObject({ state: 'stopped', processAction: 'closed_agent_terminal' })
+    expect(h.runtime.closeTerminal).toHaveBeenCalledWith('term_worker')
   })
 
   it('keeps the paste for an agent that takes its prompt only after start', async () => {
