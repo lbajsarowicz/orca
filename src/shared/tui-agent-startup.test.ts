@@ -82,7 +82,7 @@ describe('tui agent startup plans', () => {
       platform: 'win32'
     })
 
-    // A `"` switches to legacy argument passing (windows-shell-prompt-damage.test.ts).
+    // A `"` would move the prompt into a launch file (windows-shell-prompt-damage.test.ts).
     expect(plan?.launchCommand).toBe("claude 'fix Bob''s \u2018\u2018quoted\u2019\u2019 branch'")
   })
 

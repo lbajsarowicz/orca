@@ -13,45 +13,32 @@ import {
   type AgentStartupShell
 } from './tui-agent-startup-shell'
 import { windowsTypedStartupLineFits, wslTypedStartupLineFits } from './typed-startup-line'
-import {
-  quotePowerShellNativeArgument,
-  withLegacyNativeArgumentPassing
-} from './powershell-native-argument'
 import type { TuiAgent } from './tui-agent'
 
 /**
  * Whether a Windows shell would damage `prompt` typed as one quoted argument. cmd and PowerShell have
  * no bracketed paste, so a line break submits the line early and hands the rest to the shell as
- * commands. PowerShell 5.1 turns a trailing backslash plus the quote it adds into a literal `"`, and
- * 7.x's legacy mode doubles it instead, so no one spelling survives both (measured).
+ * commands. PowerShell's legacy native-argument passing (5.1 always, 7.x through a `.cmd` shim)
+ * splits an argument at an inner `"`, and 5.1 turns a trailing backslash plus the quote it adds into
+ * a literal `"` (measured); escaping for legacy passing would hand a `.cmd` shim's cmd.exe quotes it
+ * counts naively, making `&` and `<>` in the user's text live, so these ride a launch file instead.
  */
 export function windowsShellDamagesPrompt(prompt: string, shell: AgentStartupShell): boolean {
   if (isPosixStartupShell(shell)) {
     return false
   }
-  return /[\r\n]/.test(prompt) || (shell === 'powershell' && prompt.endsWith('\\'))
-}
-
-/**
- * How a prompt is quoted on a launch line, and what the line needs around it. PowerShell passes an
- * inner `"` unescaped in its legacy mode (5.1 always, 7.x through a `.cmd` shim), splitting the
- * prompt; escaped for argv and run under legacy passing, it arrives whole in both.
- */
-export function promptOnLaunchLine(
-  prompt: string,
-  shell: AgentStartupShell
-): { quoted: string; line: (line: string) => string } {
-  return shell === 'powershell' && prompt.includes('"')
-    ? { quoted: quotePowerShellNativeArgument(prompt), line: withLegacyNativeArgumentPassing }
-    : { quoted: quoteStartupArg(prompt, shell), line: (line) => line }
+  return (
+    /[\r\n]/.test(prompt) ||
+    (shell === 'powershell' && (prompt.includes('"') || prompt.endsWith('\\')))
+  )
 }
 
 /** Why a prefill draft could not be launched, in the user's words, when the Windows shell is why. */
 export function windowsDraftRefusal(draft: string, shell: AgentStartupShell): string | null {
   return windowsShellDamagesPrompt(draft.trim(), shell)
     ? "The host's Windows shell would break this draft on the agent's command line (it has a line " +
-        'break, or ends in a backslash on PowerShell), so the agent was not started. Start it ' +
-        'without the draft and paste the draft once it opens.'
+        'break, or on PowerShell a double quote or a trailing backslash), so the agent was not ' +
+        'started. Start it without the draft and paste the draft once it opens.'
     : null
 }
 

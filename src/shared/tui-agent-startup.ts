@@ -5,6 +5,7 @@ import type { SleepingAgentLaunchConfig } from './agent-session-resume'
 import {
   clearEnvCommand,
   commandSeparator,
+  quoteStartupArg,
   resolveStartupShell,
   type AgentStartupShell
 } from './tui-agent-startup-shell'
@@ -13,7 +14,6 @@ import {
   carryLaunchPrompt,
   launchFileDirectoryGrant,
   launchFileProps,
-  promptOnLaunchLine,
   windowsShellDamagesPrompt
 } from './startup-plan-launch-file'
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
@@ -125,7 +125,7 @@ function buildPlanWithPromptOnLine(args: AgentStartupPlanArgs): AgentStartupPlan
   }
 
   const launchFile = args.launchFile
-  const { quoted: quotedPrompt, line } = promptOnLaunchLine(trimmedPrompt, shell)
+  const quotedPrompt = quoteStartupArg(trimmedPrompt, shell)
   const fileProps = launchFileProps(launchFile, shell)
   const grant = launchFileDirectoryGrant(agent, launchFile, shell)
 
@@ -133,15 +133,14 @@ function buildPlanWithPromptOnLine(args: AgentStartupPlanArgs): AgentStartupPlan
     const promptSeparator = config.argvPromptSeparator ? ` ${config.argvPromptSeparator}` : ''
     return {
       agent,
-      launchCommand: line(
+      launchCommand:
         agent === 'omp'
           ? withFreshOmpLaunch(
               baseCommand.command,
               shell,
               `${grant}${promptSeparator} ${quotedPrompt}`
             )
-          : `${launchCommand}${grant}${promptSeparator} ${quotedPrompt}`
-      ),
+          : `${launchCommand}${grant}${promptSeparator} ${quotedPrompt}`,
       expectedProcess: config.expectedProcess,
       followupPrompt: null,
       launchConfig,
@@ -155,7 +154,7 @@ function buildPlanWithPromptOnLine(args: AgentStartupPlanArgs): AgentStartupPlan
   if (config.promptInjectionMode === 'flag-prompt') {
     return {
       agent,
-      launchCommand: line(`${launchCommand}${grant} --prompt ${quotedPrompt}`),
+      launchCommand: `${launchCommand}${grant} --prompt ${quotedPrompt}`,
       expectedProcess: config.expectedProcess,
       followupPrompt: null,
       launchConfig,
@@ -196,7 +195,7 @@ function buildPlanWithPromptOnLine(args: AgentStartupPlanArgs): AgentStartupPlan
   if (config.promptInjectionMode === 'flag-prompt-interactive') {
     return {
       agent,
-      launchCommand: line(`${launchCommand}${grant} --prompt-interactive ${quotedPrompt}`),
+      launchCommand: `${launchCommand}${grant} --prompt-interactive ${quotedPrompt}`,
       expectedProcess: config.expectedProcess,
       followupPrompt: null,
       launchConfig,
@@ -209,7 +208,7 @@ function buildPlanWithPromptOnLine(args: AgentStartupPlanArgs): AgentStartupPlan
   if (config.promptInjectionMode === 'flag-interactive') {
     return {
       agent,
-      launchCommand: line(`${launchCommand}${grant} -i ${quotedPrompt}`),
+      launchCommand: `${launchCommand}${grant} -i ${quotedPrompt}`,
       expectedProcess: config.expectedProcess,
       followupPrompt: null,
       launchConfig,
@@ -303,10 +302,10 @@ export function buildAgentDraftLaunchPlan(args: {
     return null
   }
   if (config.draftPromptFlag) {
-    const { quoted, line } = promptOnLaunchLine(trimmed, shell)
+    const quoted = quoteStartupArg(trimmed, shell)
     plan = {
       agent,
-      launchCommand: line(`${launchCommand} ${config.draftPromptFlag} ${quoted}`),
+      launchCommand: `${launchCommand} ${config.draftPromptFlag} ${quoted}`,
       expectedProcess: config.expectedProcess,
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),

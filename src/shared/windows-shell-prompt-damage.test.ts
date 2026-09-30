@@ -15,38 +15,29 @@ function plan(prompt: string, shell: AgentStartupShell) {
 }
 
 describe('a prompt a Windows shell would damage on the launch line', () => {
-  // The exact lines the Windows lane measured byte-exact on PowerShell 5.1 and pwsh 7.6, through
-  // node.exe, an npm .ps1 shim and an npm .cmd shim (ps-quoting-matrix.md, form F-B).
-  const legacy = (arg: string): string =>
-    `& { $PSNativeCommandArgumentPassing='Legacy'; claude '${arg}' }`
+  // Measured (ps-quoting-matrix.md): PowerShell 5.1, and 7.x through a .cmd shim, split a `"` out of
+  // the plain literal and turn a trailing backslash into `"`; the legacy-passing escape would let a
+  // .cmd shim's cmd.exe run `&` and `<>` from inside the user's quotes. So these ride a launch file.
   it.each([
-    ['P1', 'fix the "foo bar" bug', legacy('fix the \\"foo bar\\" bug')],
-    ['P2', '"leading quote" then text', legacy('\\"leading quote\\" then text')],
-    ['P3', 'trailing "quote"', legacy('trailing \\"quote\\"')],
-    ['P4', 'a \\"backslash-quote\\" b', legacy('a \\\\\\"backslash-quote\\\\\\" b')]
-  ])(
-    'types %s inline under legacy argument passing, with each quote escaped',
-    (_, prompt, line) => {
-      const startup = plan(prompt, 'powershell')
-      expect(startup?.launchFile).toBeUndefined()
-      expect(startup?.launchCommand).toBe(line)
-    }
-  )
-
-  // Measured form F-A: a pointer to a spaced path passed in every PowerShell and target.
-  it('types P6, the backtick pointer, as a plain literal', () => {
-    const prompt = 'The full task is in the file `C:\\Users\\John Smith\\t.md`. Read it.'
-    expect(plan(prompt, 'powershell')?.launchCommand).toBe(`claude '${prompt}'`)
-  })
-
-  // P5 and `see C:\dir\`: 5.1 turns the trailing backslash into `"`, 7.x's legacy mode doubles it.
-  it.each([
+    ['P1', 'fix the "foo bar" bug'],
+    ['P2', '"leading quote" then text'],
+    ['P3', 'trailing "quote"'],
+    ['P4', 'a \\"backslash-quote\\" b'],
     ['P5', 'back\\slash\\\\ "q" end\\'],
+    ['P7', 'replace "<b>" with "a & b"'],
     ['a bare path', 'see C:\\dir\\']
-  ])('moves %s, which ends in a backslash, into a launch file', (_, prompt) => {
+  ])('moves %s into a launch file on PowerShell', (_, prompt) => {
     const startup = plan(prompt, 'powershell')
     expect(startup?.launchFile?.content).toBe(prompt)
-    expect(startup?.launchCommand).not.toContain('see C:')
+    expect(startup?.launchCommand).not.toContain('"')
+    expect(startup?.launchCommand).not.toContain('Legacy')
+  })
+
+  // Measured form F-A: a pointer to a spaced path passed in every PowerShell and target.
+  it('types P6, the backtick pointer, and quote-free prompts as a plain literal', () => {
+    const prompt = 'The full task is in the file `C:\\Users\\John Smith\\t.md`. Read it.'
+    expect(plan(prompt, 'powershell')?.launchCommand).toBe(`claude '${prompt}'`)
+    expect(plan("fix Bob's build", 'powershell')?.launchCommand).toBe("claude 'fix Bob''s build'")
   })
 
   it('keeps `"` on the line for cmd and POSIX, whose quoting carries it', () => {
@@ -54,7 +45,7 @@ describe('a prompt a Windows shell would damage on the launch line', () => {
     expect(plan('fix the "foo bar" bug', 'posix')?.launchFile).toBeUndefined()
   })
 
-  it('prefills a PowerShell draft holding `"` the same way, and pastes one ending in `\\`', () => {
+  it('pastes a PowerShell draft holding `"` or ending in `\\` instead of prefilling it', () => {
     const draft = (text: string) =>
       buildAgentDraftLaunchPlan({
         agent: 'claude',
@@ -63,10 +54,9 @@ describe('a prompt a Windows shell would damage on the launch line', () => {
         platform: 'win32',
         shell: 'powershell'
       })
-    expect(draft('say "hi"')?.launchCommand).toBe(
-      `& { $PSNativeCommandArgumentPassing='Legacy'; claude --prefill 'say \\"hi\\"' }`
-    )
+    expect(draft('say "hi"')).toBeNull()
     expect(draft('see C:\\dir\\')).toBeNull()
+    expect(draft('say hi')?.launchCommand).toBe("claude --prefill 'say hi'")
   })
 
   it('points at the file with no double quote in the sentence', () => {
@@ -98,10 +88,10 @@ describe('a prompt a Windows shell would damage on the launch line', () => {
 
   it('says in plain words why a Windows shell draft was not launched', () => {
     expect(windowsDraftRefusal('line one\nline two', 'powershell')).toMatch(
-      /Windows shell would break this draft on the agent's command line \(it has a line break, or ends in a backslash on PowerShell\), so the agent was not started/
+      /Windows shell would break this draft on the agent's command line \(it has a line break, or on PowerShell a double quote or a trailing backslash\), so the agent was not started/
     )
     expect(windowsDraftRefusal('see C:\\dir\\', 'powershell')).not.toBeNull()
-    expect(windowsDraftRefusal('say "hi"', 'powershell')).toBeNull()
+    expect(windowsDraftRefusal('say "hi"', 'powershell')).not.toBeNull()
     expect(windowsDraftRefusal('say "hi"', 'cmd')).toBeNull()
     expect(windowsDraftRefusal('line one\nline two', 'posix')).toBeNull()
   })
