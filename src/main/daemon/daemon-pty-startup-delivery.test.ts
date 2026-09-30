@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import * as localPtyUtils from '../providers/local-pty-utils'
 import {
@@ -150,7 +150,7 @@ describe('DaemonPtyAdapter startup delivery', () => {
         env: { SHELL: '/bin/zsh' }
       })
       const launchDir = readdirSync(stagingDir).find((name) => name.startsWith('orca-launch-file-'))
-      const path = join(stagingDir, launchDir ?? '', 'task-context.md')
+      const path = join(realpathSync(stagingDir), launchDir ?? '', 'task-context.md')
       expect(readFileSync(path, 'utf8')).toBe('secret brief')
       expect(lastSpawnOpts?.command).toBe(`claude '${buildLaunchFilePointer(path)}'`)
       lastSubprocess._simulateData('\x1b]777;orca-shell-ready\x07\r\nuser@host $ ')

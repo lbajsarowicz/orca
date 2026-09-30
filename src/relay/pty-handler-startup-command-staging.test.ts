@@ -1,5 +1,5 @@
 import './mock-descendant-sweep'
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -46,7 +46,7 @@ describePosix('relay startup command staging', () => {
   let stagingDir: string
 
   beforeEach(() => {
-    stagingDir = mkdtempSync(join(tmpdir(), 'orca-relay-staging-'))
+    stagingDir = realpathSync(mkdtempSync(join(tmpdir(), 'orca-relay-staging-')))
     vi.stubEnv('TMPDIR', stagingDir)
     ;({ dispatcher, handler, originalPlatform } = beginPtyHandlerTest({
       mockPtySpawn,

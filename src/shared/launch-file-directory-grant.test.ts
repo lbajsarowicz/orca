@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -84,6 +84,24 @@ describe('the host writing a launch file whose directory is granted', () => {
       baseDirectory
     })
     expect(written.directory).not.toBe(baseDirectory)
+    expect(written.directory).toBe(realpathSync(written.directory))
+    expect(written.command).toBe(
+      `claude '--add-dir=${written.directory}' '${buildLaunchFilePointer(written.path)}'`
+    )
+  })
+
+  it('names the resolved directory when the temp root is reached through a symlink', () => {
+    const real = join(baseDirectory, 'private-var')
+    mkdirSync(real)
+    const linked = join(baseDirectory, 'var')
+    symlinkSync(real, linked)
+    const { plan } = planWithLaunchFile('claude')
+    const written = writeLaunchFile({
+      launchFile: plan!.launchFile!,
+      command: plan!.launchCommand,
+      baseDirectory: linked
+    })
+    expect(written.directory.startsWith(realpathSync(real))).toBe(true)
     expect(written.command).toBe(
       `claude '--add-dir=${written.directory}' '${buildLaunchFilePointer(written.path)}'`
     )

@@ -3,7 +3,7 @@
  * launch line and env name the placeholder. The file exists before any line
  * naming it is typed.
  */
-import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { launchFileDirectoryPlaceholder, type LaunchFile } from './launch-prompt-file'
@@ -86,7 +86,9 @@ export function writeLaunchFile(args: {
   }
   let directory: string | undefined
   try {
-    directory = mkdtempSync(join(baseDirectory, LAUNCH_FILE_DIR_PREFIX))
+    // Why realpath: an agent matches its read grant against the resolved path (macOS $TMPDIR sits
+    // under /var -> /private/var), so the pointer and the granted directory both name that form.
+    directory = realpathSync(mkdtempSync(join(baseDirectory, LAUNCH_FILE_DIR_PREFIX)))
     const path = join(directory, LAUNCH_FILE_NAME)
     const quotedPath = launchFilePathInQuotedRun(path, args.launchFile.quoting, platform)
     const quotedDirectory = launchFilePathInQuotedRun(directory, args.launchFile.quoting, platform)
