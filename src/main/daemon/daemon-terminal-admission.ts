@@ -16,6 +16,7 @@ import type { CreateOrAttachOptions, CreateOrAttachResult, TerminalHost } from '
 import { isTuiAgent } from '../../shared/tui-agent-config'
 import { parsePtyStartupIngressIntent } from '../../shared/pty-startup-ingress'
 import { parseLaunchFile } from '../../shared/launch-prompt-file'
+import { parseWslLaunchDirectory } from '../../shared/wsl-launch-directory'
 import {
   isAgentSessionExecutionClaim,
   isAgentSessionSurfaceBinding
@@ -104,6 +105,7 @@ export class DaemonTerminalAdmission {
         command: payload.command,
         startupCommandDelivery: payload.startupCommandDelivery,
         launchFile: parseLaunchFile(payload.launchFile),
+        wslLaunchDirectory: parseWslLaunchDirectory(payload.wslLaunchDirectory),
         ...(attachOnly ? { attachOnly: true } : {}),
         ...(isTuiAgent(payload.launchAgent) ? { launchAgent: payload.launchAgent } : {}),
         shellOverride: payload.shellOverride,

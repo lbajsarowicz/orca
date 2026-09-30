@@ -4,7 +4,11 @@ import { SessionNotFoundError } from '../daemon/daemon-errors'
 import { prepareMacosTccLoginShell } from './macos-tcc-login-shell'
 import { finalizeLocalPtySpawnEnvironment } from './local-pty-finalize-environment'
 import { normalizeLocalCallerSessionId } from './local-pty-launch-helpers'
-import { createLocalPtyLaunchPlan, DeferredLocalPtyLaunchPlan } from './local-pty-launch-plan'
+import {
+  createLocalPtyLaunchPlan,
+  DeferredLocalPtyLaunchPlan,
+  resolveLocalPtyWslDistro
+} from './local-pty-launch-plan'
 import type { LocalPtyProviderOptions } from './local-pty-provider-types'
 import { allocatePtyId, ptyShutdownOperations } from './local-pty-provider-state'
 import { activateLocalPtySession } from './local-pty-session-activation'
@@ -22,13 +26,11 @@ import { destroyPtyProcess } from './local-pty-termination'
 import { updateHistoryEnvForFallback } from '../terminal-history'
 import type { PtySpawnOptions, PtySpawnResult } from './types'
 import {
-  LaunchFileUnavailableError,
   removeLaunchFile,
-  writeLaunchFile,
+  writeSpawnLaunchFile,
   type WrittenLaunchFile
 } from '../../shared/launch-file-writing'
-import { isWslUncPath } from '../../shared/wsl-paths'
-import { isWslShellName } from '../../shared/local-windows-terminal-runtime'
+import { resolveWslLaunchDirectory } from './wsl-launch-directory-resolution'
 
 export async function spawnLocalPty(
   args: PtySpawnOptions,
@@ -48,9 +50,24 @@ export async function spawnLocalPty(
   if (args.attachOnly) {
     throw new SessionNotFoundError(args.sessionId ?? '')
   }
-  const launchFile = writeLocalLaunchFile(args)
-  if (launchFile) {
-    args = { ...args, command: launchFile.command, env: launchFile.env }
+  const wslDistro = args.command ? resolveLocalPtyWslDistro(args, getOptions) : undefined
+  // Why conditional: an await here would let a same-id shutdown miss this spawn.
+  const wslLaunchDirectory = wslDistro ? await resolveWslLaunchDirectory(wslDistro) : undefined
+  const launchFile = writeSpawnLaunchFile({
+    launchFile: args.launchFile,
+    command: args.command,
+    env: args.env,
+    orcaBuiltLine: args.launchAgent !== undefined,
+    wslDistro,
+    wslDirectory: wslLaunchDirectory
+  })
+  args = {
+    ...args,
+    ...(launchFile ? { command: launchFile.command, env: launchFile.env } : {}),
+    // Pins the plan to the distro the file was written into.
+    ...(wslLaunchDirectory
+      ? { wslLaunchDirectory, terminalWindowsWslDistro: wslLaunchDirectory.distro }
+      : {})
   }
   try {
     return await spawnFreshLocalPty(args, getOptions, reattachId, launchFile)
@@ -58,20 +75,6 @@ export async function spawnLocalPty(
     removeLaunchFile(launchFile)
     throw error
   }
-}
-
-function writeLocalLaunchFile(args: PtySpawnOptions): WrittenLaunchFile | undefined {
-  if (!args.launchFile) {
-    return undefined
-  }
-  const wsl =
-    process.platform === 'win32' &&
-    (isWslShellName(args.shellOverride) || isWslUncPath(args.cwd ?? ''))
-  if (wsl) {
-    // Why: an agent inside the distro cannot read a path in the Windows temp directory.
-    throw new LaunchFileUnavailableError('not supported for WSL sessions')
-  }
-  return writeLaunchFile({ launchFile: args.launchFile, command: args.command, env: args.env })
 }
 
 async function spawnFreshLocalPty(

@@ -192,7 +192,9 @@ export function activateLocalPtySession(args: {
     staging = stageStartupCommand({
       command: spawn.command,
       shellPath: plan.shellPath,
-      orcaBuiltLine: spawn.launchAgent !== undefined
+      orcaBuiltLine: spawn.launchAgent !== undefined,
+      wslDirectory:
+        spawn.wslLaunchDirectory?.distro === spawnedWslDistro ? spawn.wslLaunchDirectory : undefined
     })
     const notice = startupStagingFailureNotice(staging)
     if (notice) {

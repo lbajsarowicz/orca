@@ -10,6 +10,7 @@ import type {
 import type { PtyIncarnationId } from '../../shared/pty-incarnation'
 import type { TerminalExitCause } from '../../shared/terminal-exit-cause'
 import type { LaunchFile } from '../../shared/launch-prompt-file'
+import type { WslLaunchDirectory } from '../../shared/wsl-launch-directory'
 
 export type CreateOrAttachOptions = {
   sessionId: string
@@ -21,6 +22,7 @@ export type CreateOrAttachOptions = {
   command?: string
   startupCommandDelivery?: StartupCommandDelivery
   launchFile?: LaunchFile
+  wslLaunchDirectory?: WslLaunchDirectory
   launchAgent?: TuiAgent
   /** Missing ownership is not permission to create during stable-pane adoption. */
   attachOnly?: boolean

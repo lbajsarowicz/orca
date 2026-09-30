@@ -6,12 +6,7 @@ import {
   type StartupCommandStaging
 } from '../../shared/startup-command-staging'
 import { resolvePtyOwnerBackend } from '../../shared/pty-owner-backend'
-import {
-  LaunchFileUnavailableError,
-  removeLaunchFile,
-  writeLaunchFile,
-  type WrittenLaunchFile
-} from '../../shared/launch-file-writing'
+import { removeLaunchFile, writeSpawnLaunchFile } from '../../shared/launch-file-writing'
 import { getDaemonSessionResultMetadata } from './daemon-create-or-attach-result'
 import { enumerateDirectoryOnce } from './directory-enumeration-probe'
 import { normalizePtySize } from './daemon-pty-size'
@@ -125,7 +120,16 @@ async function spawnAndPublishSession(
   // Why before the fork: the shell's own cwd may already have fallen back, so probe the requested path.
   const cwdReadableByDaemon =
     opts.cwd && !wslDistro ? await isCwdReadableByThisProcess(opts.cwd) : null
-  const launchFile = writeSessionLaunchFile(opts, wslDistro)
+  const wslDirectory =
+    wslDistro && opts.wslLaunchDirectory?.distro === wslDistro ? opts.wslLaunchDirectory : undefined
+  const launchFile = writeSpawnLaunchFile({
+    launchFile: opts.launchFile,
+    command: opts.command,
+    env: opts.env,
+    orcaBuiltLine: opts.launchAgent !== undefined,
+    wslDistro,
+    wslDirectory
+  })
   const command = launchFile?.command ?? opts.command
   let subprocess: Awaited<ReturnType<typeof deps.spawnSubprocess>>
   try {
@@ -225,7 +229,8 @@ async function spawnAndPublishSession(
     staging = stageStartupCommand({
       command,
       shellPath: subprocess.shellPath,
-      orcaBuiltLine: opts.launchAgent !== undefined
+      orcaBuiltLine: opts.launchAgent !== undefined,
+      wslDirectory
     })
     const notice = startupStagingFailureNotice(staging)
     if (notice) {
@@ -259,20 +264,6 @@ async function spawnAndPublishSession(
     ...(cwdReadableByDaemon !== null ? { cwdReadableByDaemon } : {}),
     attachToken: token
   }
-}
-
-function writeSessionLaunchFile(
-  opts: InternalCreateOrAttachOptions,
-  wslDistro: string | undefined
-): WrittenLaunchFile | undefined {
-  if (!opts.launchFile) {
-    return undefined
-  }
-  if (wslDistro) {
-    // Why: an agent inside the distro cannot read a path in the Windows temp directory.
-    throw new LaunchFileUnavailableError('not supported for WSL sessions')
-  }
-  return writeLaunchFile({ launchFile: opts.launchFile, command: opts.command, env: opts.env })
 }
 
 function createSessionExitHandler(
