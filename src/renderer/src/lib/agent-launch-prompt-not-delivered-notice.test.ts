@@ -28,7 +28,7 @@ describe('showAgentLaunchPromptNotDeliveredNotice', () => {
 
   it('tells a user whose agent never started that it did not, with the prompt to copy', async () => {
     const writeClipboardText = vi.fn(async () => {})
-    ;(globalThis as { window?: unknown }).window = { api: { ui: { writeClipboardText } } }
+    vi.stubGlobal('window', { api: { ui: { writeClipboardText } } })
     showAgentLaunchNotStartedNotice({ prompt: 'fix the hook' })
 
     const [message, options] = mocks.message.mock.calls[0] ?? []
@@ -36,6 +36,6 @@ describe('showAgentLaunchPromptNotDeliveredNotice', () => {
     expect(options?.duration).toBe(Infinity)
     options?.action?.onClick()
     expect(writeClipboardText).toHaveBeenCalledWith('fix the hook')
-    delete (globalThis as { window?: unknown }).window
+    vi.unstubAllGlobals()
   })
 })

@@ -391,9 +391,9 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
       prompt: 'fix the build\nthen run the tests'
     })
 
-    const create = mockRuntimeEnvironmentTransportCall.mock.calls
-      .map(([request]) => request as { method: string; params?: { command?: string } })
-      .find((request) => request.method === 'terminal.create')
+    const create = mockRuntimeEnvironmentTransportCall.mock.calls.find(
+      ([request]) => request.method === 'terminal.create'
+    )?.[0]
     expect(create?.params?.command).not.toContain('orca-launch-file')
     expect(create?.params?.command).not.toContain('fix the build')
     expect(mockPasteDraftWhenAgentReady).toHaveBeenCalledWith(

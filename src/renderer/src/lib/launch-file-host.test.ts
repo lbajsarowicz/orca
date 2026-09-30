@@ -1,18 +1,16 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { launchHostWritesLaunchFile } from './launch-file-host'
 import { buildQuickComposerStartup } from '@/hooks/composer-state/quick-startup-plan'
 
-const webWindow = globalThis as { window?: { __ORCA_WEB_CLIENT__?: boolean } }
-
 describe('whether a launch host writes its launch file', () => {
   afterEach(() => {
-    delete webWindow.window
+    vi.unstubAllGlobals()
   })
 
   it('is true for this machine and false for a paired host or a web client', () => {
     expect(launchHostWritesLaunchFile({ activeRuntimeEnvironmentId: null })).toBe(true)
     expect(launchHostWritesLaunchFile({ activeRuntimeEnvironmentId: 'env-1' })).toBe(false)
-    webWindow.window = { __ORCA_WEB_CLIENT__: true }
+    vi.stubGlobal('window', { __ORCA_WEB_CLIENT__: true })
     expect(launchHostWritesLaunchFile({ activeRuntimeEnvironmentId: null })).toBe(false)
   })
 })
