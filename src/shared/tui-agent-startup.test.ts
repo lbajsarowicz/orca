@@ -77,12 +77,13 @@ describe('tui agent startup plans', () => {
   it('uses PowerShell quoting by default when the target shell is Windows', () => {
     const plan = buildAgentStartupPlan({
       agent: 'claude',
-      prompt: 'fix Bob\'s "quoted" branch',
+      prompt: "fix Bob's \u2018quoted\u2019 branch",
       cmdOverrides: {},
       platform: 'win32'
     })
 
-    expect(plan?.launchCommand).toBe("claude 'fix Bob''s \"quoted\" branch'")
+    // A `"` would move the prompt into a launch file (windows-shell-prompt-damage.test.ts).
+    expect(plan?.launchCommand).toBe("claude 'fix Bob''s \u2018\u2018quoted\u2019\u2019 branch'")
   })
 
   it('invokes fully quoted argv commands in PowerShell', () => {

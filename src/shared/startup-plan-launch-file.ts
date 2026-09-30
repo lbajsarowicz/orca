@@ -12,12 +12,21 @@ import {
 } from './tui-agent-startup-shell'
 import type { TuiAgent } from './tui-agent'
 
-/** Why: cmd and PowerShell have no bracketed paste, so a line break typed inside a prompt submits
- *  the line early and hands the rest to the shell as commands. */
-export function windowsLineBreakLaunchFile(prompt: string, shell: AgentStartupShell) {
-  return !isPosixStartupShell(shell) && /[\r\n]/.test(prompt)
-    ? carryInLaunchFile(prompt, false)
-    : null
+/**
+ * Whether a Windows shell would damage `prompt` typed as one quoted argument. cmd and PowerShell have
+ * no bracketed paste, so a line break submits the line early and hands the rest to the shell as
+ * commands. PowerShell's legacy native-argument passing (5.1 always, 7.x calling a `.cmd` shim)
+ * leaves an inner `"` unescaped, so the agent gets the prompt split into several arguments.
+ */
+export function windowsShellDamagesPrompt(prompt: string, shell: AgentStartupShell): boolean {
+  if (isPosixStartupShell(shell)) {
+    return false
+  }
+  return /[\r\n]/.test(prompt) || (shell === 'powershell' && prompt.includes('"'))
+}
+
+export function windowsPromptLaunchFile(prompt: string, shell: AgentStartupShell) {
+  return windowsShellDamagesPrompt(prompt, shell) ? carryInLaunchFile(prompt, false) : null
 }
 
 /** The host writes the path inside this line's quoting, so the file carries which one it is. */

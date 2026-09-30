@@ -30,8 +30,10 @@ export function launchFileDirectoryPlaceholder(placeholder: string): string {
   return placeholder.replace(/^orca-launch-file-/, 'orca-launch-dir-')
 }
 
+// Why backticks, not quotes: PowerShell's legacy native-argument passing splits an argument at an
+// inner `"`, while a backtick is literal in every shell's quoting and to the agent's argv parser.
 export function buildLaunchFilePointer(path: string): string {
-  return `The full task is in the file "${path}". Read it and complete the task it describes.`
+  return `The full task is in the file \`${path}\`. Read it and complete the task it describes.`
 }
 
 /**

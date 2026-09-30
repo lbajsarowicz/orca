@@ -25,7 +25,7 @@ describe('worker-start with the brief on the launch command line', () => {
       expect.objectContaining({
         startupAgent: 'codex',
         preAllocatedHandle: 'term_worker',
-        startupPrompt: expect.stringMatching(/^The full task is in the file "orca-launch-file-/),
+        startupPrompt: expect.stringMatching(/^The full task is in the file `orca-launch-file-/),
         launchFile: expect.objectContaining({ sensitive: true })
       })
     )

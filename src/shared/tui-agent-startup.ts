@@ -5,7 +5,6 @@ import type { SleepingAgentLaunchConfig } from './agent-session-resume'
 import {
   clearEnvCommand,
   commandSeparator,
-  isPosixStartupShell,
   quoteStartupArg,
   resolveStartupShell,
   type AgentStartupShell
@@ -14,7 +13,8 @@ import type { LaunchFile } from './launch-prompt-file'
 import {
   launchFileDirectoryGrant,
   launchFileProps,
-  windowsLineBreakLaunchFile
+  windowsPromptLaunchFile,
+  windowsShellDamagesPrompt
 } from './startup-plan-launch-file'
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
 import type { StartupCommandDelivery } from './codex-startup-delivery'
@@ -107,7 +107,7 @@ export function buildAgentStartupPlan(args: {
     }
   }
 
-  const lineFile = windowsLineBreakLaunchFile(trimmedPrompt, shell)
+  const lineFile = windowsPromptLaunchFile(trimmedPrompt, shell)
   const launchFile = lineFile?.launchFile ?? args.launchFile
   const quotedPrompt = quoteStartupArg(lineFile?.prompt ?? trimmedPrompt, shell)
   const fileProps = launchFileProps(launchFile, shell)
@@ -280,9 +280,9 @@ export function buildAgentDraftLaunchPlan(args: {
     agentCommand: baseCommand.commandWithoutSessionOptions
   })
   let plan: AgentDraftLaunchPlan | null = null
-  // Why: a typed line break would submit early (see windowsLineBreakLaunchFile); callers paste the
-  // draft into the agent instead, and a pointer sentence is no draft to edit.
-  if (config.draftPromptFlag && !isPosixStartupShell(shell) && /[\r\n]/.test(trimmed)) {
+  // Why: the shell would damage the draft (see windowsShellDamagesPrompt); callers paste it into
+  // the agent instead, and a pointer sentence is no draft to edit.
+  if (config.draftPromptFlag && windowsShellDamagesPrompt(trimmed, shell)) {
     return null
   }
   if (config.draftPromptFlag) {
