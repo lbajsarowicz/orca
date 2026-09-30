@@ -23,6 +23,14 @@ describe('worker-start --max-load host load gate', () => {
     vi.spyOn(os, 'cpus').mockReturnValue(Array.from({ length: cores }, () => idleCore))
   }
 
+  function mockSshWorktree(): void {
+    vi.mocked(harness.runtime.showManagedTerminalWorkspace).mockResolvedValue({
+      id: 'repo::worktree',
+      repoId: 'repo',
+      hostId: 'ssh:build-box'
+    })
+  }
+
   async function startWithMaxLoad(maxLoad: number, extra: Record<string, unknown> = {}) {
     const task = harness.db.createTask({
       spec: 'heavy: integration tests',
@@ -86,6 +94,38 @@ describe('worker-start --max-load host load gate', () => {
       code: 'invalid_argument',
       message: '--max-load gates workers on the Run home only; it cannot combine with --on.'
     })
+  })
+
+  it('refuses a worktree that runs on an SSH host without sampling the Run home load', async () => {
+    const loadavg = vi.spyOn(os, 'loadavg')
+    mockSshWorktree()
+    const { task, result } = await startWithMaxLoad(0.7)
+
+    await expect(result).rejects.toMatchObject({
+      code: 'invalid_argument',
+      message:
+        "--max-load samples the Run home load only; the resolved worktree runs on ssh:build-box. Start the worker on that host's own Orca, or omit --max-load."
+    })
+    expect(loadavg).not.toHaveBeenCalled()
+    expect(
+      harness.db.db
+        .prepare('SELECT COUNT(*) AS rows FROM dispatch_contexts WHERE task_id = ?')
+        .get(task.id)
+    ).toEqual({ rows: 0 })
+  })
+
+  it('samples the Run home load for a worktree on this host', async () => {
+    mockHostLoad(4, 8)
+    const { result } = await startWithMaxLoad(0.7)
+
+    await expect(result).resolves.toMatchObject({ state: 'ready' })
+    expect(vi.mocked(os.loadavg)).toHaveBeenCalled()
+  })
+
+  it('starts a worker in an SSH-backed worktree when --max-load is omitted', async () => {
+    mockSshWorktree()
+
+    await expect(harness.startWorker()).resolves.toMatchObject({ dispatchId: expect.any(String) })
   })
 
   it('rejects a non-positive ratio at the schema boundary', async () => {

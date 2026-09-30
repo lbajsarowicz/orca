@@ -6,24 +6,40 @@ import {
   hostLoadExceededMessage,
   type HostLoadSample
 } from '../../../../../../shared/host-load-gate'
+import {
+  LOCAL_EXECUTION_HOST_ID,
+  type ExecutionHostId
+} from '../../../../../../shared/execution-host'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 
+/** Refuses `--max-load` with `--on`: only the execution host reads its own load. */
+export function assertMaxLoadNotCombinedWithOn(params: { maxLoad?: number; on?: string }): void {
+  if (params.maxLoad === undefined || !params.on) {
+    return
+  }
+  throw new OrchestrationError(
+    'invalid_argument',
+    '--max-load gates workers on the Run home only; it cannot combine with --on.'
+  )
+}
+
 /**
- * Refuses a worker-start whose `--max-load` is above the current per-core load of this host.
- * Runs before any Task or Dispatch row exists, so a refusal leaves nothing to clean up.
+ * Refuses a worker-start whose resolved worktree executes off the Run home, else gates the Run
+ * home's own per-core load. Runs before any Task, Dispatch row, or worktree creation.
  */
 export function assertHostLoadPermitsWorkerStart(
-  params: { maxLoad?: number; on?: string },
+  params: { maxLoad?: number },
+  executionHostId: ExecutionHostId | undefined,
   sampleHostLoad: () => HostLoadSample = collectHostLoad
 ): void {
   if (params.maxLoad === undefined) {
     return
   }
-  // Why: the execution host owns its own load, and this runtime cannot read a connected server's.
-  if (params.on) {
+  // Why: this runtime cannot read a connected server's load, so its verdict is only the Run home's.
+  if (executionHostId !== undefined && executionHostId !== LOCAL_EXECUTION_HOST_ID) {
     throw new OrchestrationError(
       'invalid_argument',
-      '--max-load gates workers on the Run home only; it cannot combine with --on.'
+      `--max-load samples the Run home load only; the resolved worktree runs on ${executionHostId}. Start the worker on that host's own Orca, or omit --max-load.`
     )
   }
   const verdict = evaluateHostLoadGate(sampleHostLoad(), params.maxLoad)

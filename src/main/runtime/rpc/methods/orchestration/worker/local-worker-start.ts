@@ -29,6 +29,12 @@ import { tearDownFailedWorkerStart } from './failed-worker-start-teardown'
 import { requireWorkerAuthority, type WorkerEffect } from './worker-topology'
 import { prepareLocalWorkerStart } from './worker-start-validation'
 import { deliverAndSettleWorkerStartReadiness } from './worker-start-readiness-settlement'
+import { assertHostLoadPermitsWorkerStart } from './worker-start-host-load'
+import {
+  getRepoExecutionHostId,
+  getWorktreeExecutionHostId,
+  type ExecutionHostId
+} from '../../../../../../shared/execution-host'
 
 type WorkerStartMutation = {
   callerFingerprint: string
@@ -76,6 +82,14 @@ export async function startLocalWorker(args: {
     : requestedWorktree === 'current'
       ? await runtime.showManagedTerminalWorkspace(`id:${coordinatorWorktreeId}`)
       : await runtime.showManagedTerminalWorkspace(requestedWorktree)
+  assertHostLoadPermitsWorkerStart(
+    params,
+    await resolveWorkerStartExecutionHostId(runtime, {
+      creationWorktree,
+      resolvedWorktree,
+      repoSelector: params.repo
+    })
+  )
   if (params.terminal) {
     await assertExplicitWorkerTerminalUsable({
       runtime,
@@ -267,4 +281,25 @@ export async function startLocalWorker(args: {
       mode
     })
   }
+}
+
+/** The host that will actually run the worker, for the Run-home load gate. */
+async function resolveWorkerStartExecutionHostId(
+  runtime: Pick<OrcaRuntimeService, 'showRepo' | 'listRepos'>,
+  args: {
+    creationWorktree: { repoId: string } | undefined
+    resolvedWorktree: { repoId: string; hostId?: ExecutionHostId } | undefined
+    repoSelector: string | undefined
+  }
+): Promise<ExecutionHostId | undefined> {
+  if (args.creationWorktree) {
+    const repo = await runtime.showRepo(args.repoSelector ?? args.creationWorktree.repoId)
+    return getRepoExecutionHostId(repo)
+  }
+  const worktree = args.resolvedWorktree
+  if (!worktree) {
+    return undefined
+  }
+  const repo = runtime.listRepos().find((candidate) => candidate.id === worktree.repoId)
+  return getWorktreeExecutionHostId(worktree, repo)
 }
