@@ -289,6 +289,29 @@ describe('launchAgentInNewTab', () => {
     })
   })
 
+  it('seeds no chat copy of a prompt that rides a launch file, which only its pointer would match', async () => {
+    store.settings = {
+      agentCmdOverrides: {},
+      agentDefaultArgs: {},
+      agentDefaultEnv: {},
+      activeRuntimeEnvironmentId: null,
+      experimentalNativeChat: true,
+      experimentalStructuredNativeChat: true,
+      openAgentTabsInChatByDefault: true
+    }
+    const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
+
+    launchAgentInNewTab({
+      agent: 'grok',
+      worktreeId: 'wt-1',
+      prompt: 'y'.repeat(20_000),
+      promptDelivery: 'submit-after-ready'
+    })
+
+    expect(mockQueueTabStartupCommand.mock.calls[0]?.[1]?.launchFile).toBeDefined()
+    expect(mockSeedNativeChatLaunchPrompt).not.toHaveBeenCalled()
+  })
+
   it('keeps Model-A SSH Grok launches in terminal mode', async () => {
     store.settings = {
       agentCmdOverrides: {},

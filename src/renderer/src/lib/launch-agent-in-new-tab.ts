@@ -292,14 +292,15 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
   })
   // Why: fire-and-forget the paste-after-ready delivery so callers keep the synchronous { tabId, startupPlan } signature.
   // Why: safe to call unconditionally — the helper short-circuits (no paste) for native-prefill agents already holding the draft.
-  if (hasPrompt && promptDelivery === 'draft' && pasteDraftAfterLaunch === null) {
-    // Why: the draft rode in on argv (Claude --prefill etc.), so no paste runs
-    // and deliverLaunchPromptToAgentTab never seeds. Mirror it into chat here.
-    seedNativeChatLaunchDraftForAgentTab({ tabId: tab.id, agent, text: trimmedPrompt })
-  }
-  if (hasPrompt && promptDelivery === 'submit-after-ready' && pasteDraftAfterLaunch === null) {
-    // Why: the launch line submits it, so no paste seeds the chat's copy of the prompt.
-    seedNativeChatLaunchPromptForAgentTab({ tabId: tab.id, agent, text: trimmedPrompt })
+  // Why: no paste runs, so no paste seeds the chat's copy: a draft rode in on argv (Claude --prefill
+  // etc.), and a submitted prompt rode the launch line. Not with a launch file: the transcript then
+  // shows the pointer sentence, which would never prune this copy.
+  if (hasPrompt && pasteDraftAfterLaunch === null && !launchFile) {
+    if (promptDelivery === 'draft') {
+      seedNativeChatLaunchDraftForAgentTab({ tabId: tab.id, agent, text: trimmedPrompt })
+    } else if (promptDelivery === 'submit-after-ready') {
+      seedNativeChatLaunchPromptForAgentTab({ tabId: tab.id, agent, text: trimmedPrompt })
+    }
   }
   if (pasteDraftAfterLaunch !== null) {
     const timeoutNotice = createPasteReadinessTimeoutNotice({

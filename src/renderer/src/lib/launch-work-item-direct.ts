@@ -164,7 +164,8 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
   let primaryTabId: string | null
   let startupPlan = null as ReturnType<typeof buildDirectWorkItemAgentStartupPlan>['startupPlan']
   let effectiveAgent: TuiAgent | null = null
-  let promptOnLaunchCommand = false
+  let promptOnLaunchCommand = false,
+    promptInLaunchFile = false
   let plan: AgentSessionLaunchPlan | null = null
   let structuredLaunchCompleted = false
   const draftContent = await getDirectWorkItemDraftContent(item, repoConnectionId)
@@ -228,6 +229,7 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
     effectiveAgent = launchPreparation.effectiveAgent
     startupPlan = launchPreparation.startupPlan
     promptOnLaunchCommand = launchPreparation.promptOnLaunchCommand
+    promptInLaunchFile = Boolean(launchPreparation.launchFile)
     startupPlanFailed = launchPreparation.startupPlanFailed
     plan = launchPreparation.plan
 
@@ -300,7 +302,9 @@ export async function launchWorkItemDirect(args: LaunchWorkItemDirectArgs): Prom
     primaryTabId &&
     effectiveAgent &&
     promptDelivery === 'submit-after-ready' &&
-    promptOnLaunchCommand
+    promptOnLaunchCommand &&
+    // Why: the transcript then shows the pointer sentence, which would never prune this copy.
+    !promptInLaunchFile
   ) {
     // Why: the launch line submits it, so no paste seeds the chat's copy of the prompt.
     seedNativeChatLaunchPromptForAgentTab({
