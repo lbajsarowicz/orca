@@ -20,7 +20,7 @@ export type CreateOrAttachRequest = {
     envToDelete?: string[]
     command?: string
     startupCommandDelivery?: StartupCommandDelivery
-    /** v37+: written by the daemon before it types `command`. */
+    /** v38+: written by the daemon before it types `command`. */
     launchFile?: LaunchFile
     launchAgent?: TuiAgent
     /** Rejects an absent session instead of interpreting mount uncertainty as create permission. */

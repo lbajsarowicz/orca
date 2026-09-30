@@ -41,7 +41,7 @@ import { makePaneKey } from '../../../shared/stable-pane-id'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { LaunchSource } from '../../../shared/telemetry-events'
 
-/** The host waits up to 60 s for the agent before pasting; the reply must outlive that. */
+/** For an agent without a launch-line prompt the host waits up to 60 s before pasting; the reply must outlive that. */
 const PROMPTED_AGENT_LAUNCH_TIMEOUT_MS = 90_000
 /** One send and two replays under the same operation id, the renderer's create budget plus one. */
 const MAX_LAUNCH_ATTEMPTS = 3
