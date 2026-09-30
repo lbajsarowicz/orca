@@ -1,9 +1,10 @@
 import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { createMockSubprocess } from './daemon-pty-adapter-test-harness'
 import { TerminalHost } from './terminal-host'
+import type { TerminalHostOptions } from './terminal-host-options'
 import { buildLaunchFilePointer, planLaunchPrompt } from '../../shared/launch-prompt-file'
 import type { WslLaunchDirectory } from '../../shared/wsl-launch-directory'
 
@@ -12,14 +13,14 @@ vi.mock('../pty-descendant-termination', () => ({ killWithDescendantSweep: vi.fn
 describe('a daemon WSL session with a launch file', () => {
   const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
   let host: TerminalHost
-  let spawn: ReturnType<typeof vi.fn>
+  let spawn: Mock<TerminalHostOptions['spawnSubprocess']>
   let windowsSide: string
 
   beforeEach(() => {
     Object.defineProperty(process, 'platform', { configurable: true, value: 'win32' })
     // Stands in for the distro's `\\wsl.localhost` cache directory.
     windowsSide = mkdtempSync(join(tmpdir(), 'orca-daemon-wsl-test-'))
-    spawn = vi.fn(() =>
+    spawn = vi.fn<TerminalHostOptions['spawnSubprocess']>(() =>
       Object.assign(createMockSubprocess(), { shellPath: 'C:\\Windows\\System32\\wsl.exe' })
     )
     host = new TerminalHost({ spawnSubprocess: spawn })
@@ -49,7 +50,7 @@ describe('a daemon WSL session with a launch file', () => {
 
   it('writes the file into the distro and types its Linux path', async () => {
     await create({ distro: 'Ubuntu', windowsPath: windowsSide, linuxPath: '/home/ada/.cache/orca' })
-    const command: string = spawn.mock.calls[0]?.[0].command
+    const command = spawn.mock.calls[0]?.[0].command ?? ''
     const linuxPath = /\/home\/ada\/\.cache\/orca\/orca-launch-file-\w+\/task-context\.md/.exec(
       command
     )?.[0]
