@@ -113,7 +113,9 @@ describe('writeLaunchFile', () => {
     const { launchFile } = planLaunchPrompt('x', { sensitive: true })
     expect(() =>
       writeLaunchFile({ launchFile: launchFile!, baseDirectory: join(baseDirectory, 'missing') })
-    ).toThrow(/launch_file_unavailable/)
+    ).toThrow(
+      /^Orca could not write the file that carries the agent's prompt \(.+\), so the agent was not started\./
+    )
   })
 
   it('removes the whole directory', () => {

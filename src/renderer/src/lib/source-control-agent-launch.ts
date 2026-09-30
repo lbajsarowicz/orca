@@ -9,7 +9,11 @@
 
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
-import { showAgentLaunchPromptNotDeliveredNotice } from '@/lib/agent-launch-prompt-not-delivered-notice'
+import {
+  showAgentLaunchNotStartedNotice,
+  showAgentLaunchPromptNotDeliveredNotice
+} from '@/lib/agent-launch-prompt-not-delivered-notice'
+import { isLaunchFileUnavailableMessage } from '../../../shared/launch-prompt-file'
 import { initialAgentTabViewModeProps } from '@/lib/native-chat-initial-view-mode'
 import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcript-readability'
 import { getConnectionIdFromState } from '@/lib/connection-context'
@@ -265,7 +269,11 @@ export function settleSourceControlAgentLaunch(
     return { started: false, promptDelivered: false, failureNotified: true }
   }
   if (result.kind !== 'launched') {
-    toast.error(result.message)
+    if (result.kind === 'failed' && isLaunchFileUnavailableMessage(result.message)) {
+      showAgentLaunchNotStartedNotice({ prompt: args.prompt })
+    } else {
+      toast.error(result.message)
+    }
     return { started: false, promptDelivered: false, failureNotified: true }
   }
   if (result.warning) {

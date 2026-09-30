@@ -100,3 +100,15 @@ export function parseLaunchFile(value: unknown): LaunchFile | undefined {
   }
   return { placeholder, content, sensitive, ...(knownQuoting ? { quoting: knownQuoting } : {}) }
 }
+
+const LAUNCH_FILE_UNAVAILABLE_CODE = 'launch_file_unavailable'
+
+/** The refusal a host sends when it could not write a launch file; it reaches the user as is. */
+export function describeLaunchFileUnavailable(reason: string): string {
+  return `Orca could not write the file that carries the agent's prompt (${reason}), so the agent was not started. [${LAUNCH_FILE_UNAVAILABLE_CODE}]`
+}
+
+/** Also matches the `launch_file_unavailable: <reason>` form earlier builds sent. */
+export function isLaunchFileUnavailableMessage(message: string): boolean {
+  return message.includes(LAUNCH_FILE_UNAVAILABLE_CODE)
+}

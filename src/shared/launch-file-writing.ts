@@ -6,7 +6,11 @@
 import { mkdtempSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { launchFileDirectoryPlaceholder, type LaunchFile } from './launch-prompt-file'
+import {
+  describeLaunchFileUnavailable,
+  launchFileDirectoryPlaceholder,
+  type LaunchFile
+} from './launch-prompt-file'
 import { quoteStartupArg, type AgentStartupShell } from './tui-agent-startup-shell'
 
 const LAUNCH_FILE_DIR_PREFIX = 'orca-launch-file-'
@@ -56,7 +60,7 @@ export function launchFilePathInQuotedRun(
 
 export class LaunchFileUnavailableError extends Error {
   constructor(reason: string) {
-    super(`launch_file_unavailable: ${reason}`)
+    super(describeLaunchFileUnavailable(reason))
   }
 }
 
