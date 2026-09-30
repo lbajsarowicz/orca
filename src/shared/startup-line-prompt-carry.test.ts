@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_INLINE_LAUNCH_PROMPT_CHARS } from './launch-prompt-file'
+import { MAX_POSIX_INLINE_LAUNCH_PROMPT_BYTES } from './launch-prompt-file'
 import { planStartupWithLaunchPrompt } from './startup-line-prompt-carry'
 import type { TuiAgent } from './tui-agent'
 import {
@@ -54,7 +54,7 @@ describe('a launch prompt on the command line', () => {
   })
 
   it('points at a launch file past the argv ceiling, with the full text in the file', () => {
-    const prompt = `${'y'.repeat(MAX_INLINE_LAUNCH_PROMPT_CHARS)}z`
+    const prompt = `${'y'.repeat(MAX_POSIX_INLINE_LAUNCH_PROMPT_BYTES)}z`
     const { plan: startup, launchFile } = plan('claude', prompt)
     expect(launchFile?.content).toBe(prompt)
     expect(launchFile?.sensitive).toBe(false)

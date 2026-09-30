@@ -1,6 +1,7 @@
 /** How a startup plan carries a launch file: which prompts move into one, and what the line adds. */
 import {
   MAX_INLINE_LAUNCH_PROMPT_CHARS,
+  MAX_POSIX_INLINE_LAUNCH_PROMPT_BYTES,
   carryInLaunchFile,
   launchFileDirectoryPlaceholder,
   type LaunchFile
@@ -34,6 +35,15 @@ export function windowsShellDamagesPrompt(prompt: string, shell: AgentStartupShe
   )
 }
 
+const encoder = new TextEncoder()
+
+/** Windows keeps the argv ceiling; a POSIX host can carry far more on its staged line. */
+function pastInlineCeiling(text: string, platform: NodeJS.Platform): boolean {
+  return platform === 'win32'
+    ? text.length > MAX_INLINE_LAUNCH_PROMPT_CHARS
+    : encoder.encode(text).byteLength > MAX_POSIX_INLINE_LAUNCH_PROMPT_BYTES
+}
+
 /** Why a prefill draft could not be launched, in the user's words, when the Windows shell is why. */
 export function windowsDraftRefusal(draft: string, shell: AgentStartupShell): string | null {
   return windowsShellDamagesPrompt(draft.trim(), shell)
@@ -58,7 +68,7 @@ type CarriedPlanArgs = {
 /**
  * Where a launch prompt rides, decided once for every launch path: on the line, which a POSIX host
  * stages when it is long or multi-line; in a launch file named by a pointer when the prompt is past
- * the argv ceiling, sensitive, damaged by a Windows shell, or past cmd's line cap; or, where no
+ * the argv ceiling (`pastInlineCeiling`), sensitive, damaged by a Windows shell, or past cmd's line cap; or, where no
  * launch file can be written (a paired host), left in `followupPrompt` for the paste after ready.
  */
 export function carryLaunchPrompt<
@@ -85,7 +95,7 @@ export function carryLaunchPrompt<
   const shell = resolveStartupShell(args.platform, args.shell)
   if (
     args.sensitive === true ||
-    text.length > MAX_INLINE_LAUNCH_PROMPT_CHARS ||
+    pastInlineCeiling(text, args.platform) ||
     (!readsEnv && windowsShellDamagesPrompt(text, shell))
   ) {
     return viaLaunchFile()

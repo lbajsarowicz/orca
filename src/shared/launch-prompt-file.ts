@@ -9,6 +9,9 @@ import type { AgentStartupShell } from './tui-agent-startup-shell'
 /** Keeps agent argv comfortably below the lowest practical OS command-line limit. */
 export const MAX_INLINE_LAUNCH_PROMPT_CHARS = 16_384
 
+/** A POSIX host stages a long line, so only Linux's 128 KiB cap on one argv string binds there. */
+export const MAX_POSIX_INLINE_LAUNCH_PROMPT_BYTES = 100_000
+
 /** Content the host that owns the PTY writes to a private file before anything names it. */
 export type LaunchFile = {
   /** Stands in for the file's path in the command and env until the host substitutes it. */

@@ -304,7 +304,7 @@ describe('launchAgentInNewTab', () => {
     launchAgentInNewTab({
       agent: 'grok',
       worktreeId: 'wt-1',
-      prompt: 'y'.repeat(20_000),
+      prompt: 'y'.repeat(100_001),
       promptDelivery: 'submit-after-ready'
     })
 
@@ -841,7 +841,7 @@ describe('launchAgentInNewTab', () => {
 
   it('hands a prompt past the argv ceiling to the host as a launch file the command points at', async () => {
     const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
-    const prompt = `Session context:\n${'x'.repeat(20_000)}`
+    const prompt = `Session context:\n${'x'.repeat(100_001)}`
 
     const result = launchAgentInNewTab({
       agent: 'codex',

@@ -140,7 +140,7 @@ describe('buildWorktreeStartupForAgent prompt carry', () => {
   })
 
   it('hands a prompt past the argv ceiling to the host as a launch file', () => {
-    const prompt = 'x'.repeat(20_000)
+    const prompt = 'x'.repeat(100_001)
     const result = build(prompt)
     expect(result.startup.launchFile?.content).toBe(prompt)
     expect(result.startup.command).toContain(result.startup.launchFile?.placeholder)

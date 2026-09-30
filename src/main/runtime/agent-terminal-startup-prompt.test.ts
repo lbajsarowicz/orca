@@ -82,7 +82,7 @@ describe('a terminal create that is handed a launch prompt', () => {
 
   it('hands a prompt past the argv ceiling to the host as a launch file', async () => {
     const { runtime, spawn } = runtimeWithAgentLaunch()
-    const prompt = 'x'.repeat(20_000)
+    const prompt = 'x'.repeat(100_001)
 
     await runtime.createTerminal('id:wt-1', { startupAgent: 'claude', startupPrompt: prompt })
 

@@ -76,6 +76,8 @@ const PROMPTS: [string, string][] = [
   ['a 600-byte prompt', `${HOSTILE} ${'x'.repeat(600)}`],
   // Why 5 KB: past Linux's 4096-byte canonical buffer as well as macOS's 1024.
   ['a 5 KB prompt', `${HOSTILE} ${'y'.repeat(5000)}`],
+  // Why: a POSIX host carries a prompt up to 100,000 bytes on its staged line before a launch file.
+  ['a 99 KB prompt', `${HOSTILE} ${'z'.repeat(99_000)}`],
   ['a multi-line prompt with a trailing newline', `first line\n${HOSTILE}\n\nlast line\n`],
   // Why: typed raw, a line editor reads the TAB as completion and mangles the argument.
   ['a prompt with a tab', 'before\tafter']

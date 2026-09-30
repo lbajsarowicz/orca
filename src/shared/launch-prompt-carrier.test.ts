@@ -12,11 +12,17 @@ describe('the one launch-prompt decision every launch path builds through', () =
     expect(plan?.launchCommand.length).toBeLessThan(8_191)
   })
 
-  it('points a prompt past the argv ceiling at a launch file on a POSIX host too', () => {
-    const prompt = 'z'.repeat(20_000)
-    expect(buildAgentStartupPlan({ ...base, prompt, platform: 'linux' })?.launchFile?.content).toBe(
-      prompt
-    )
+  // Why bytes: Linux caps one argv string at 128 KiB, and a POSIX host stages a long line.
+  it('points a prompt past 100,000 UTF-8 bytes at a launch file on a POSIX host too', () => {
+    const onLine = (prompt: string) =>
+      buildAgentStartupPlan({ ...base, prompt, platform: 'linux' })?.launchFile === undefined
+    expect(onLine('z'.repeat(100_000))).toBe(true)
+    expect(onLine('z'.repeat(100_001))).toBe(false)
+    // 34,000 characters, but 102,000 bytes.
+    expect(onLine('漢'.repeat(34_000))).toBe(false)
+    expect(
+      buildAgentStartupPlan({ ...base, prompt: 'z'.repeat(20_000), platform: 'win32' })?.launchFile
+    ).toBeDefined()
   })
 
   it('keeps a sensitive prompt off the line however short it is', () => {
@@ -35,7 +41,7 @@ describe('the one launch-prompt decision every launch path builds through', () =
     const typed = buildAgentStartupPlan({ ...base, platform: 'linux', prompt: 'one\ntwo' })
     expect(typed?.launchCommand).toContain('two')
     expect(typed?.followupPrompt).toBeNull()
-    const huge = 'c'.repeat(20_000)
+    const huge = 'c'.repeat(100_001)
     const pointed = buildAgentStartupPlan({ ...base, platform: 'linux', prompt: huge })
     expect(pointed?.launchFile?.content).toBe(huge)
     expect(pointed?.followupPrompt).toBeNull()
