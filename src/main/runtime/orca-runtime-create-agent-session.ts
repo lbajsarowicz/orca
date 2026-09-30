@@ -17,15 +17,7 @@ import {
 } from './orca-runtime-core'
 import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
 import { resolveAgentStartupPlanInputs } from '../../shared/agent-startup-plan-inputs'
-import {
-  agentPromptRidesLaunchCommand,
-  buildAgentDraftLaunchPlan,
-  buildAgentStartupPlan
-} from '../../shared/tui-agent-startup'
-import {
-  WSL_PROMPT_TOO_LONG_TO_TYPE_MESSAGE,
-  launchRunsInLocalWsl
-} from '../../shared/startup-line-prompt-carry'
+import { buildAgentDraftLaunchPlan, buildAgentStartupPlan } from '../../shared/tui-agent-startup'
 import { windowsDraftRefusal } from '../../shared/startup-plan-launch-file'
 import { resolveStartupShell } from '../../shared/tui-agent-startup-shell'
 import type { RuntimeTerminalCreate } from '../../shared/runtime-types'
@@ -175,22 +167,8 @@ export class OrcaRuntimeWithCreateAgentSession extends OrcaRuntimeWithGetAgentSe
           : buildAgentStartupPlan({
               ...startupArgs,
               prompt: request.prompt ?? '',
-              allowEmptyPromptLaunch: true,
-              launchRunsInWsl: launchRunsInLocalWsl({
-                hostPlatform: process.platform,
-                launchPlatform: startupArgs.platform,
-                isRemote: Boolean(workspace.connectionId)
-              })
+              allowEmptyPromptLaunch: true
             })
-      if (
-        startup &&
-        'followupPrompt' in startup &&
-        startup.followupPrompt &&
-        agentPromptRidesLaunchCommand(request.agent)
-      ) {
-        // This path has no paste after start, so a prompt the WSL line refused must not vanish.
-        throw new Error(WSL_PROMPT_TOO_LONG_TO_TYPE_MESSAGE)
-      }
       if (!startup) {
         const refusal =
           request.promptDelivery === 'draft'

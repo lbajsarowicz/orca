@@ -12,7 +12,7 @@ import {
   resolveStartupShell,
   type AgentStartupShell
 } from './tui-agent-startup-shell'
-import { windowsTypedStartupLineFits, wslTypedStartupLineFits } from './typed-startup-line'
+import { windowsTypedStartupLineFits } from './typed-startup-line'
 import type { TuiAgent } from './tui-agent'
 
 /**
@@ -51,15 +51,13 @@ type CarriedPlanArgs = {
   launchFile?: LaunchFile
   hostWritesLaunchFile?: boolean
   sensitive?: boolean
-  launchRunsInWsl?: boolean
 }
 
 /**
  * Where a launch prompt rides, decided once for every launch path: on the line, which a POSIX host
  * stages when it is long or multi-line; in a launch file named by a pointer when the prompt is past
  * the argv ceiling, sensitive, damaged by a Windows shell, or past cmd's line cap; or, where no
- * launch file can be written (a paired host, a WSL session), left in `followupPrompt` for the paste
- * after ready. A WSL line also pastes past what its canonical-mode buffer keeps.
+ * launch file can be written (a paired host), left in `followupPrompt` for the paste after ready.
  */
 export function carryLaunchPrompt<
   A extends CarriedPlanArgs,
@@ -76,7 +74,7 @@ export function carryLaunchPrompt<
     return clean && { ...clean, followupPrompt: text }
   }
   const viaLaunchFile = (): P | null => {
-    if (args.hostWritesLaunchFile === false || args.launchRunsInWsl) {
+    if (args.hostWritesLaunchFile === false) {
       return pasteAfterReady()
     }
     const pointer = carryInLaunchFile(text, args.sensitive === true)
@@ -94,9 +92,6 @@ export function carryLaunchPrompt<
   if (!onLine || readsEnv) {
     // Hermes reads its prompt from the env and refuses one past that budget, counted in bytes.
     return !onLine && readsEnv ? viaLaunchFile() : onLine
-  }
-  if (args.launchRunsInWsl) {
-    return wslTypedStartupLineFits(onLine.launchCommand) ? onLine : pasteAfterReady()
   }
   return args.platform === 'win32' && !windowsTypedStartupLineFits(onLine.launchCommand)
     ? viaLaunchFile()

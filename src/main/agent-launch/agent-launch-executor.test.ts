@@ -27,8 +27,6 @@ function harness(options: {
   structuredCreateError?: Error
   deliveredMessageId?: string | null
   terminalPromptDelivered?: boolean
-  /** The terminal create reports a WSL session could not carry the prompt on its launch line. */
-  promptLeftForPaste?: boolean
 }) {
   const calls: string[] = []
   const createWorktree = vi.fn(
@@ -60,7 +58,7 @@ function harness(options: {
   })
   const createTerminalAgent = vi.fn(async (_args: { startupPrompt?: string }) => {
     calls.push('createTerminalAgent')
-    return { handle: 'term_1', ...(options.promptLeftForPaste ? { promptLeftForPaste: true } : {}) }
+    return { handle: 'term_1' }
   })
   const deliverStructuredPrompt = vi.fn(async () => {
     calls.push('deliverStructuredPrompt')
@@ -360,22 +358,6 @@ describe('delivering a launch prompt to a terminal agent', () => {
     expect(result.prompt).toEqual({ delivery: 'submit', outcome: 'handed-to-terminal' })
     expect(h.createTerminalAgent.mock.calls[0]?.[0]).toMatchObject({ startupPrompt: long.text })
     expect(h.deliverTerminalPrompt).not.toHaveBeenCalled()
-  })
-
-  it('pastes once the agent is ready when a WSL create reports it could not carry the prompt', async () => {
-    const h = harness({
-      createSupport: { supported: false, reason: 'wsl' },
-      promptLeftForPaste: true
-    })
-    const result = await h.run({ ...CREATE_INTENT, prompt: SUBMIT })
-
-    expect(result.prompt).toEqual({ delivery: 'submit', outcome: 'handed-to-terminal' })
-    expect(h.deliverTerminalPrompt).toHaveBeenCalledWith({
-      handle: 'term_1',
-      agent: 'claude',
-      freshLaunch: true,
-      prompt: SUBMIT
-    })
   })
 
   it('never pastes into an agent-first create’s startup terminal that took the prompt', async () => {

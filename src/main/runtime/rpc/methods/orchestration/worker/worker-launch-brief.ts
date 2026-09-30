@@ -26,7 +26,7 @@ export type WorkerLaunchBrief = {
   launchStartedAt: number
 }
 
-export type WorkerLaunchBriefFactory = (worktreeId: string) => Promise<WorkerLaunchBrief | null>
+export type WorkerLaunchBriefFactory = (worktreeId: string) => Promise<WorkerLaunchBrief>
 
 export function createWorkerLaunchBriefFactory(args: {
   runtime: OrcaRuntimeService
@@ -50,10 +50,6 @@ export function createWorkerLaunchBriefFactory(args: {
       isWsl: undefined,
       worktreeId,
       projectRuntime: runtime.resolveProjectRuntimeForWorktree(worktreeId)
-    }
-    // Why: an agent inside WSL cannot read the Windows temp path the host writes; it keeps the paste.
-    if (resolveTerminalOrchestrationCliCommand(target) === 'orca-ide') {
-      return null
     }
     const handle = runtime.createPreAllocatedTerminalHandle()
     const capability = mintDispatchCapability()

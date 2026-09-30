@@ -69,8 +69,6 @@ export type AgentStartupPlanArgs = {
   hostWritesLaunchFile?: boolean
   /** The caller minted a secret in the prompt: it rides a launch file, never argv or history. */
   sensitive?: boolean
-  /** A WSL session can neither stage a long line nor read a launch file (`carryLaunchPrompt`). */
-  launchRunsInWsl?: boolean
 }
 
 /**

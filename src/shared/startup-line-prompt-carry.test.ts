@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_INLINE_LAUNCH_PROMPT_CHARS } from './launch-prompt-file'
-import { launchRunsInLocalWsl, planStartupWithLaunchPrompt } from './startup-line-prompt-carry'
+import { planStartupWithLaunchPrompt } from './startup-line-prompt-carry'
 import type { TuiAgent } from './tui-agent'
 import {
   AGENT_LAUNCH_PROMPT_CARRY_RUNTIME_CAPABILITY,
@@ -20,7 +20,6 @@ function plan(
     platform?: NodeJS.Platform
     shell?: 'cmd' | 'powershell'
     sensitive?: boolean
-    wsl?: boolean
   } = {}
 ) {
   return planStartupWithLaunchPrompt(
@@ -31,7 +30,7 @@ function plan(
       ...(extra.shell ? { shell: extra.shell } : {})
     },
     prompt,
-    { ...(extra.sensitive ? { sensitive: true } : {}), ...(extra.wsl ? { wsl: true } : {}) }
+    extra.sensitive ? { sensitive: true } : {}
   )
 }
 
@@ -126,76 +125,6 @@ describe('a launch prompt on the command line', () => {
     const { plan: startup, launchFile } = plan('claude', '   ')
     expect(launchFile).toBeUndefined()
     expect(startup?.launchCommand).toBe('claude')
-  })
-})
-
-describe('a launch prompt in a WSL session, which can neither stage nor read a launch file', () => {
-  it('carries a short prompt inline', () => {
-    const {
-      plan: startup,
-      launchFile,
-      promptLeftForPaste
-    } = plan('codex', 'fix it', {
-      platform: 'linux',
-      wsl: true
-    })
-    expect(startup?.launchCommand).toContain('fix it')
-    expect(launchFile).toBeUndefined()
-    expect(promptLeftForPaste).toBeUndefined()
-  })
-
-  it.each([
-    ['multi-line', 'first line\nsecond line'],
-    ['past the argv ceiling', 'x'.repeat(MAX_INLINE_LAUNCH_PROMPT_CHARS + 1)]
-  ])('starts clean and leaves a %s prompt for its caller to paste', (_label, prompt) => {
-    const {
-      plan: startup,
-      launchFile,
-      promptLeftForPaste
-    } = plan('codex', prompt, {
-      platform: 'linux',
-      wsl: true
-    })
-    expect(promptLeftForPaste).toBe(true)
-    expect(launchFile).toBeUndefined()
-    expect(startup?.launchCommand).not.toContain(prompt.slice(0, 10))
-  })
-
-  it('is a local Linux launch on a Windows host, never an SSH one or a native Windows one', () => {
-    expect(
-      launchRunsInLocalWsl({ hostPlatform: 'win32', launchPlatform: 'linux', isRemote: false })
-    ).toBe(true)
-    expect(
-      launchRunsInLocalWsl({ hostPlatform: 'win32', launchPlatform: 'linux', isRemote: true })
-    ).toBe(false)
-    expect(
-      launchRunsInLocalWsl({ hostPlatform: 'win32', launchPlatform: 'win32', isRemote: false })
-    ).toBe(false)
-    expect(
-      launchRunsInLocalWsl({ hostPlatform: 'darwin', launchPlatform: 'darwin', isRemote: false })
-    ).toBe(false)
-  })
-
-  // Why: `--shell wsl.exe` on a C:\ worktree keeps the Windows platform, but the write site refuses it.
-  it('is also a local launch into a WSL shell, however the shell is spelled', () => {
-    for (const shellOverride of ['wsl.exe', 'wsl', 'C:\\Windows\\System32\\wsl.exe']) {
-      expect(
-        launchRunsInLocalWsl({
-          hostPlatform: 'win32',
-          launchPlatform: 'win32',
-          isRemote: false,
-          shellOverride
-        })
-      ).toBe(true)
-    }
-    expect(
-      launchRunsInLocalWsl({
-        hostPlatform: 'win32',
-        launchPlatform: 'win32',
-        isRemote: false,
-        shellOverride: 'powershell.exe'
-      })
-    ).toBe(false)
   })
 })
 

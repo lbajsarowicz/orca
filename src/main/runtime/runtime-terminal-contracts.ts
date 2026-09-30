@@ -47,11 +47,9 @@ export type TerminalCreateOptions = {
    * argument. Not a general prompt channel: an agent that takes its text only after start has no
    * launch command to carry it, and a caller that sets this for one is refused rather than having
    * the prompt silently dropped. It rides that command, directly or as a pointer to a launch file
-   * (`startup-line-prompt-carry`), except in WSL, where a line too long to type leaves it unsent.
+   * (`startup-line-prompt-carry`).
    */
   startupPrompt?: string
-  /** Main-internal: the WSL case above; the caller pastes `startupPrompt` once the agent is ready. */
-  onStartupPromptLeftForPaste?: () => void
   /** Written by the execution host before the launch line naming it is typed (`startupPrompt`
    *  carries its pointer). */
   launchFile?: LaunchFile

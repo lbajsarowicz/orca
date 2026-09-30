@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ORCHESTRATION_CONTRACT_VERSION } from '../../../../../../shared/protocol-version'
+import { getAppEnvironment } from '../../../../../../shared/app-environment'
 import { OrcaRuntimeService } from '../../../../orca-runtime'
 import { OrchestrationDb } from '../../../../orchestration/db'
 import { RpcDispatcher } from '../../../dispatcher'
@@ -277,7 +278,7 @@ describe('orchestration new-worktree workers', () => {
   it('injects the execution host CLI command and Dispatch capability together', async () => {
     mockCreatedWorktree()
     vi.mocked(runtime.getTerminalOrchestrationCliCommand).mockReturnValue('orca-ide')
-    // A WSL agent cannot read the host-written launch file, so its brief is still pasted.
+    // The host writes a WSL agent's launch file into the distro, so its brief rides one too.
     vi.spyOn(runtime, 'resolveProjectRuntimeForWorktree').mockReturnValue({
       status: 'resolved',
       runtime: {
@@ -290,13 +291,17 @@ describe('orchestration new-worktree workers', () => {
       }
     })
 
-    await startWorker({ worktree: 'new-top-level' })
+    // A dev build names `orca-dev` everywhere; the host's own command shows only when packaged.
+    const packaged = vi.spyOn(getAppEnvironment(), 'isPackaged').mockReturnValue(true)
+    try {
+      await startWorker({ worktree: 'new-top-level' })
+    } finally {
+      packaged.mockRestore()
+    }
 
-    expect(runtime.createTerminal).toHaveBeenCalledWith(
-      'id:repo::created',
-      expect.not.objectContaining({ launchFile: expect.anything() })
-    )
-    const prompt = vi.mocked(runtime.sendTerminalAgentPrompt).mock.calls[0]?.[1] ?? ''
+    const createOptions = vi.mocked(runtime.createTerminal).mock.calls[0]?.[1]
+    const prompt = createOptions?.launchFile?.content ?? ''
+    expect(runtime.sendTerminalAgentPrompt).not.toHaveBeenCalled()
     expect(prompt).toContain('orca-ide orchestration send')
     expect(prompt).toMatch(/--dispatch-capability dcap_[A-Za-z0-9_-]+/)
     expect(prompt).not.toMatch(/(^|\s)orca orchestration send/)

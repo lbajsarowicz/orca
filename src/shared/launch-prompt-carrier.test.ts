@@ -30,26 +30,14 @@ describe('the one launch-prompt decision every launch path builds through', () =
     expect(plan?.launchCommand).not.toContain('dcap_secret')
   })
 
-  describe('in a WSL session, which can neither stage a line nor read a launch file', () => {
-    const wsl = { ...base, platform: 'linux' as const, launchRunsInWsl: true }
-
-    it('types a line its canonical-mode buffer keeps', () => {
-      const prompt = 'a'.repeat(3_000)
-      const plan = buildAgentStartupPlan({ ...wsl, prompt })
-      expect(plan?.launchCommand).toContain(prompt)
-      expect(plan?.followupPrompt).toBeNull()
-    })
-
-    // Measured: a 5,023-byte line lost its closing quote and stalled at a continuation prompt.
-    it.each([
-      ['a 5,023-byte line', 'b'.repeat(5_000)],
-      ['a multi-line prompt', 'one\ntwo'],
-      ['a prompt past the argv ceiling', 'c'.repeat(20_000)]
-    ])('launches clean and leaves %s for the paste', (_, prompt) => {
-      const plan = buildAgentStartupPlan({ ...wsl, prompt })
-      expect(plan?.launchFile).toBeUndefined()
-      expect(plan?.launchCommand).toBe('claude')
-      expect(plan?.followupPrompt).toBe(prompt)
-    })
+  // Why: the host writes a WSL session's staged line and launch file into the distro.
+  it('plans a WSL launch like any Linux launch: long lines stay typed, huge ones get a file', () => {
+    const typed = buildAgentStartupPlan({ ...base, platform: 'linux', prompt: 'one\ntwo' })
+    expect(typed?.launchCommand).toContain('two')
+    expect(typed?.followupPrompt).toBeNull()
+    const huge = 'c'.repeat(20_000)
+    const pointed = buildAgentStartupPlan({ ...base, platform: 'linux', prompt: huge })
+    expect(pointed?.launchFile?.content).toBe(huge)
+    expect(pointed?.followupPrompt).toBeNull()
   })
 })

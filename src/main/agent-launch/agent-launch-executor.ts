@@ -346,8 +346,7 @@ async function createTerminalSurface(
       ...(terminal.paneKey ? { paneKey: terminal.paneKey } : {})
     },
     ...(terminal.warning ? { warning: terminal.warning } : {}),
-    // The runtime puts a given prompt on the launch command, or reports the WSL case it could not.
-    ...(startupPrompt && !terminal.promptLeftForPaste ? { promptRodeLaunchCommand: true } : {})
+    ...(startupPrompt ? { promptRodeLaunchCommand: true } : {})
   }
 }
 

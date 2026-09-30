@@ -19,8 +19,6 @@ import {
   resolveTuiAgentLaunchEnv
 } from '../../../shared/tui-agent-launch-defaults'
 import { TUI_AGENT_CONFIG } from '../../../shared/tui-agent-config'
-import { launchRunsInLocalWsl } from '../../../shared/startup-line-prompt-carry'
-import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { LaunchSource } from '../../../shared/telemetry-events'
 import { resolveAgentLaunchExecutionContext } from '@/lib/launch-agent-execution-context'
@@ -166,12 +164,7 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
       prompt: trimmedPrompt,
       promptDelivery,
       isFollowupPath,
-      launchesOnPairedHost,
-      launchesInLocalWsl: launchRunsInLocalWsl({
-        hostPlatform: CLIENT_PLATFORM,
-        launchPlatform: resolvedLaunchPlatform,
-        isRemote
-      })
+      launchesOnPairedHost
     })
   let promptDeliveryResult: Promise<{ delivered: boolean; failureNotified: boolean }> | undefined
 

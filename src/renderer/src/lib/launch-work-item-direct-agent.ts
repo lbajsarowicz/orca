@@ -18,11 +18,7 @@ import { translate } from '@/i18n/i18n'
 import { resolveInitialNativeChatSessionOptions } from '@/components/native-chat/native-chat-launch-session-options'
 import type { PersistedNativeChatSessionOptions } from '../../../shared/native-chat-session-options'
 import type { LaunchFile } from '../../../shared/launch-prompt-file'
-import {
-  launchRunsInLocalWsl,
-  planStartupWithLaunchPrompt
-} from '../../../shared/startup-line-prompt-carry'
-import { CLIENT_PLATFORM } from '@/lib/new-workspace'
+import { planStartupWithLaunchPrompt } from '../../../shared/startup-line-prompt-carry'
 import { agentPromptRidesLaunchCommand } from '../../../shared/tui-agent-startup'
 
 export function buildDirectWorkItemAgentStartupPlan(args: {
@@ -86,17 +82,11 @@ export function buildDirectWorkItemAgentStartupPlan(args: {
     !args.launchesOnPairedHost &&
     agentPromptRidesLaunchCommand(args.agent)
   ) {
-    const carried = planStartupWithLaunchPrompt(planInputs, args.draftContent, {
-      wsl: launchRunsInLocalWsl({
-        hostPlatform: CLIENT_PLATFORM,
-        launchPlatform: args.launchPlatform,
-        isRemote: args.isRemote === true
-      })
-    })
+    const carried = planStartupWithLaunchPrompt(planInputs, args.draftContent)
     return {
       startupPlan: carried.plan,
       ...(carried.launchFile ? { launchFile: carried.launchFile } : {}),
-      promptOnLaunchCommand: carried.plan !== null && !carried.promptLeftForPaste,
+      promptOnLaunchCommand: carried.plan !== null,
       startupPlanFailed: carried.plan === null
     }
   }

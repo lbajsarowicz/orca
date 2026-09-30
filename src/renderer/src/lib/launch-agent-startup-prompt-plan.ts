@@ -32,8 +32,6 @@ export function planLaunchAgentStartupPrompt(args: {
   isFollowupPath: boolean
   /** A paired host of unknown version may neither stage a long line nor write a launch file. */
   launchesOnPairedHost: boolean
-  /** A WSL session can neither stage nor read a launch file (`startup-line-prompt-carry`). */
-  launchesInLocalWsl: boolean
 }): LaunchAgentStartupPromptPlan {
   const { base, prompt, promptDelivery, isFollowupPath } = args
   const hasPrompt = prompt.length > 0
@@ -85,12 +83,7 @@ export function planLaunchAgentStartupPrompt(args: {
       ? pasteAfterReady(true)
       : { startupPlan, pasteDraftAfterLaunch: null, submitPastedPrompt: false }
   }
-  const carried = planStartupWithLaunchPrompt(base, prompt, { wsl: args.launchesInLocalWsl })
-  if (carried.promptLeftForPaste) {
-    // Temporary, until WSL reads launch files: a line it could not type is pasted, whatever the
-    // delivery; typed, it would stall at a continuation prompt and never start the agent.
-    return pasteAfterReady(true)
-  }
+  const carried = planStartupWithLaunchPrompt(base, prompt)
   return {
     startupPlan: carried.plan,
     ...(carried.launchFile ? { launchFile: carried.launchFile } : {}),

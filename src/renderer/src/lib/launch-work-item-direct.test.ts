@@ -830,8 +830,7 @@ describe('launchWorkItemDirect', () => {
         agent: 'codex',
         platform: 'linux'
       }),
-      'Fix the failing checks.',
-      { wsl: expect.any(Boolean) }
+      'Fix the failing checks.'
     )
   })
 })

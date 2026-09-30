@@ -5,14 +5,7 @@ import type { WorktreeStartupLaunch } from '../../shared/worktree/launch-types'
 import type { TuiAgent } from '../../shared/tui-agent'
 import type { SleepingAgentLaunchConfig } from '../../shared/agent-session-resume'
 import { isTuiAgentEnabled } from '../../shared/tui-agent-selection'
-import {
-  agentPromptRidesLaunchCommand,
-  buildAgentStartupPlan
-} from '../../shared/tui-agent-startup'
-import {
-  WSL_PROMPT_TOO_LONG_TO_TYPE_MESSAGE,
-  launchRunsInLocalWsl
-} from '../../shared/startup-line-prompt-carry'
+import { buildAgentStartupPlan } from '../../shared/tui-agent-startup'
 import { resolveAgentStartupPlanInputs } from '../../shared/agent-startup-plan-inputs'
 
 export class OrcaRuntimeWithResolveMobileSessionTerminalCommand extends OrcaRuntimeWithRunCreateMobileSessionTerminal {
@@ -54,29 +47,23 @@ export class OrcaRuntimeWithResolveMobileSessionTerminalCommand extends OrcaRunt
     if (!isTuiAgentEnabled(opts.agent, settings.disabledTuiAgents)) {
       throw new Error('Selected agent is disabled. Choose an enabled agent before creating.')
     }
-    // Why: mobile may be iOS while the shell host is Windows/macOS/Linux or SSH Linux; quote for the host shell.
-    const platform = this.getAgentLaunchPlatformForWorkspace(workspace)
-    // Why: SSH runs the CLI through the relay shim (plain `orca`), so the Linux-only `orca-ide` rename must not apply.
-    const isRemote = Boolean(workspace.connectionId)
     const startupPlan = buildAgentStartupPlan({
-      ...resolveAgentStartupPlanInputs({ agent: opts.agent, settings, platform, isRemote }),
+      ...resolveAgentStartupPlanInputs({
+        agent: opts.agent,
+        settings,
+        // Why: mobile may be iOS while the shell host is Windows/macOS/Linux or SSH Linux; quote for the host shell.
+        platform: this.getAgentLaunchPlatformForWorkspace(workspace),
+        // Why: SSH runs the CLI through the relay shim (plain `orca`), so the Linux-only `orca-ide` rename must not apply.
+        isRemote: Boolean(workspace.connectionId)
+      }),
       prompt: opts.agentPrompt ?? '',
-      allowEmptyPromptLaunch: true,
-      launchRunsInWsl: launchRunsInLocalWsl({
-        hostPlatform: process.platform,
-        launchPlatform: platform,
-        isRemote
-      })
+      allowEmptyPromptLaunch: true
     })
     if (!startupPlan) {
       throw new Error(`Could not build launch command for ${opts.agent}.`)
     }
     if (opts.agentPrompt && startupPlan.followupPrompt) {
-      throw new Error(
-        agentPromptRidesLaunchCommand(opts.agent)
-          ? WSL_PROMPT_TOO_LONG_TO_TYPE_MESSAGE
-          : `Agent ${opts.agent} does not support startup prompt quick commands.`
-      )
+      throw new Error(`Agent ${opts.agent} does not support startup prompt quick commands.`)
     }
     await this.markWorkspaceTrustedForAgent(opts.agent, workspace.connectionId, workspace.path)
     return {

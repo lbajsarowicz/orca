@@ -24,7 +24,6 @@ import {
   buildAgentStartupPlan
 } from '../../shared/tui-agent-startup'
 import {
-  launchRunsInLocalWsl,
   planStartupWithLaunchPrompt,
   type LaunchPromptStartupPlan
 } from '../../shared/startup-line-prompt-carry'
@@ -250,14 +249,7 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
       })
       planned = { plan, launchFile: plan?.launchFile ?? opts.launchFile }
     } else {
-      planned = planStartupWithLaunchPrompt(planInputs, prompt, {
-        wsl: launchRunsInLocalWsl({
-          hostPlatform: process.platform,
-          launchPlatform: platform,
-          isRemote,
-          shellOverride: opts.shellOverride
-        })
-      })
+      planned = planStartupWithLaunchPrompt(planInputs, prompt)
     }
     const { plan: startupPlan, launchFile } = planned
     if (!startupPlan) {
@@ -267,9 +259,6 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
         throw new Error(`Could not build launch command for ${opts.startupAgent}.`)
       }
       return opts
-    }
-    if (planned.promptLeftForPaste) {
-      opts.onStartupPromptLeftForPaste?.()
     }
 
     await this.markWorkspaceTrustedForAgent(agent, workspace.connectionId, workspace.path)

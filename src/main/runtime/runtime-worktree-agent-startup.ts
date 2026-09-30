@@ -10,10 +10,7 @@ import { isTuiAgent, TUI_AGENT_CONFIG } from '../../shared/tui-agent-config'
 import { isTuiAgentEnabled, pickTuiAgent } from '../../shared/tui-agent-selection'
 import { resolveAgentStartupPlanInputs } from '../../shared/agent-startup-plan-inputs'
 import { buildAgentDraftLaunchPlan, buildAgentStartupPlan } from '../../shared/tui-agent-startup'
-import {
-  launchRunsInLocalWsl,
-  planStartupWithLaunchPrompt
-} from '../../shared/startup-line-prompt-carry'
+import { planStartupWithLaunchPrompt } from '../../shared/startup-line-prompt-carry'
 import {
   markAntigravityWorkspaceTrusted,
   markCodexProjectTrusted,
@@ -158,14 +155,10 @@ export function buildWorktreeStartupForAgent(
     ...(environment.agentArgs !== undefined ? { agentArgs: environment.agentArgs } : {}),
     sessionOptions: environment.toSessionOptions(environment.launchPreferences)
   })
-  const planned = planStartupWithLaunchPrompt(planInputs, environment.prompt ?? '', {
-    wsl: launchRunsInLocalWsl({
-      hostPlatform: process.platform,
-      launchPlatform: planInputs.platform,
-      isRemote: repoIsRemote(repo)
-    })
-  })
-  const { plan: startupPlan, launchFile } = planned
+  const { plan: startupPlan, launchFile } = planStartupWithLaunchPrompt(
+    planInputs,
+    environment.prompt ?? ''
+  )
   if (!startupPlan) {
     throw new Error(`Could not build launch command for ${agent}.`)
   }
@@ -181,11 +174,11 @@ export function buildWorktreeStartupForAgent(
       ...(launchFile ? { launchFile } : {}),
       telemetry: agentStartedTelemetry(agent, environment.launchSource)
     },
-    ...(startupPlan.followupPrompt || planned.promptLeftForPaste
+    ...(startupPlan.followupPrompt
       ? {
           followup: {
             expectedProcess: startupPlan.expectedProcess,
-            prompt: startupPlan.followupPrompt ?? (environment.prompt ?? '').trim()
+            prompt: startupPlan.followupPrompt
           }
         }
       : {})
