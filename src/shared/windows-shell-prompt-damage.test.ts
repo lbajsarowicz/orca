@@ -40,6 +40,15 @@ describe('a prompt a Windows shell would damage on the launch line', () => {
     expect(plan("fix Bob's build", 'powershell')?.launchCommand).toBe("claude 'fix Bob''s build'")
   })
 
+  // Measured (QA-WIN R0-R2): through a `.cmd` shim, `%PATH%` reached the agent as 1,795 characters.
+  it('moves a %NAME% pair into a launch file on PowerShell and keeps a lone percent typed', () => {
+    expect(plan('echo %PATH% for me', 'powershell')?.launchFile?.content).toBe('echo %PATH% for me')
+    expect(plan('coverage is 80% now', 'powershell')?.launchCommand).toBe(
+      "claude 'coverage is 80% now'"
+    )
+    expect(plan('echo %PATH% for me', 'cmd')?.launchFile).toBeUndefined()
+  })
+
   it('keeps `"` on the line for cmd and POSIX, whose quoting carries it', () => {
     expect(plan('fix the "foo bar" bug', 'cmd')?.launchFile).toBeUndefined()
     expect(plan('fix the "foo bar" bug', 'posix')?.launchFile).toBeUndefined()
@@ -88,7 +97,7 @@ describe('a prompt a Windows shell would damage on the launch line', () => {
 
   it('says in plain words why a Windows shell draft was not launched', () => {
     expect(windowsDraftRefusal('line one\nline two', 'powershell')).toMatch(
-      /Windows shell would break this draft on the agent's command line \(it has a line break, or on PowerShell a double quote or a trailing backslash\), so the agent was not started/
+      /Windows shell would break this draft on the agent's command line \(it has a line break or other control character, or on PowerShell a double quote, a %NAME% pair or a trailing backslash\), so the agent was not started/
     )
     expect(windowsDraftRefusal('see C:\\dir\\', 'powershell')).not.toBeNull()
     expect(windowsDraftRefusal('say "hi"', 'powershell')).not.toBeNull()

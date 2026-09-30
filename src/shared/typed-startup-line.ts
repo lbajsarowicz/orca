@@ -8,7 +8,7 @@ export const WINDOWS_TYPED_STARTUP_LINE_MAX_CHARS = 8191
 const encoder = new TextEncoder()
 
 /** Any C0 byte or DEL: no quoter escapes them, so a line editor reads them as keys. */
-function hasControlByte(line: string): boolean {
+export function hasControlByte(line: string): boolean {
   for (let i = 0; i < line.length; i += 1) {
     const code = line.charCodeAt(i)
     if (code < 0x20 || code === 0x7f) {

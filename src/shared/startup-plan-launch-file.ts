@@ -12,24 +12,25 @@ import {
   resolveStartupShell,
   type AgentStartupShell
 } from './tui-agent-startup-shell'
-import { windowsTypedStartupLineFits } from './typed-startup-line'
+import { hasControlByte, windowsTypedStartupLineFits } from './typed-startup-line'
 import type { TuiAgent } from './tui-agent'
 
 /**
- * Whether a Windows shell would damage `prompt` typed as one quoted argument. cmd and PowerShell have
- * no bracketed paste, so a line break submits the line early and hands the rest to the shell as
- * commands. PowerShell's legacy native-argument passing (5.1 always, 7.x through a `.cmd` shim)
- * splits an argument at an inner `"`, and 5.1 turns a trailing backslash plus the quote it adds into
- * a literal `"` (measured); escaping for legacy passing would hand a `.cmd` shim's cmd.exe quotes it
- * counts naively, making `&` and `<>` in the user's text live, so these ride a launch file instead.
+ * Whether a Windows shell would damage `prompt` as one quoted argument; the closed rule is this plus
+ * cmd's 8,191-character line cap (`carryLaunchPrompt`). No quoting keeps a control byte literal: cmd
+ * types the line and a line break submits it early. PowerShell runs a short line from its argv, so
+ * its damage is the hand-off to the agent (measured): legacy argument passing (5.1 always, 7.x into a
+ * `.cmd` shim) splits at an inner `"` and turns a trailing `\` into `"`, and a shim's cmd.exe expands
+ * `%NAME%`; a lone `%` stays literal.
  */
 export function windowsShellDamagesPrompt(prompt: string, shell: AgentStartupShell): boolean {
   if (isPosixStartupShell(shell)) {
     return false
   }
   return (
-    /[\r\n]/.test(prompt) ||
-    (shell === 'powershell' && (prompt.includes('"') || prompt.endsWith('\\')))
+    hasControlByte(prompt) ||
+    (shell === 'powershell' &&
+      (prompt.includes('"') || /%[^%]+%/.test(prompt) || prompt.endsWith('\\')))
   )
 }
 
@@ -37,8 +38,9 @@ export function windowsShellDamagesPrompt(prompt: string, shell: AgentStartupShe
 export function windowsDraftRefusal(draft: string, shell: AgentStartupShell): string | null {
   return windowsShellDamagesPrompt(draft.trim(), shell)
     ? "The host's Windows shell would break this draft on the agent's command line (it has a line " +
-        'break, or on PowerShell a double quote or a trailing backslash), so the agent was not ' +
-        'started. Start it without the draft and paste the draft once it opens.'
+        'break or other control character, or on PowerShell a double quote, a %NAME% pair or a ' +
+        'trailing backslash), so the agent was not started. Start it without the draft and paste ' +
+        'the draft once it opens.'
     : null
 }
 
