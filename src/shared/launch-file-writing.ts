@@ -92,10 +92,15 @@ export function writeLaunchFile(args: {
   try {
     // Why realpath: an agent matches its read grant against the resolved path (macOS $TMPDIR sits
     // under /var -> /private/var), so the pointer and the granted directory both name that form.
-    directory = realpathSync(mkdtempSync(join(baseDirectory, LAUNCH_FILE_DIR_PREFIX)))
-    const path = join(directory, LAUNCH_FILE_NAME)
+    const launchDirectory = realpathSync(mkdtempSync(join(baseDirectory, LAUNCH_FILE_DIR_PREFIX)))
+    directory = launchDirectory
+    const path = join(launchDirectory, LAUNCH_FILE_NAME)
     const quotedPath = launchFilePathInQuotedRun(path, args.launchFile.quoting, platform)
-    const quotedDirectory = launchFilePathInQuotedRun(directory, args.launchFile.quoting, platform)
+    const quotedDirectory = launchFilePathInQuotedRun(
+      launchDirectory,
+      args.launchFile.quoting,
+      platform
+    )
     if (quotedPath === null || quotedDirectory === null) {
       throw new LaunchFileUnavailableError('temp directory path cannot be quoted')
     }
@@ -107,7 +112,7 @@ export function writeLaunchFile(args: {
         .replaceAll(args.launchFile.placeholder, () => filePath)
         .replaceAll(directoryPlaceholder, () => directoryPath)
     return {
-      directory,
+      directory: launchDirectory,
       path,
       ...(args.command !== undefined
         ? { command: substitute(args.command, quotedPath, quotedDirectory) }
@@ -117,7 +122,7 @@ export function writeLaunchFile(args: {
             env: Object.fromEntries(
               Object.entries(args.env).map(([key, value]) => [
                 key,
-                substitute(value, path, directory)
+                substitute(value, path, launchDirectory)
               ])
             )
           }
