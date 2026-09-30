@@ -254,7 +254,8 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
         wsl: launchRunsInLocalWsl({
           hostPlatform: process.platform,
           launchPlatform: platform,
-          isRemote
+          isRemote,
+          shellOverride: opts.shellOverride
         })
       })
     }

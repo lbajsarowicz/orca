@@ -19,6 +19,7 @@ import {
   type AgentStartupPlan
 } from './tui-agent-startup'
 import { typedStartupLineFits, windowsTypedStartupLineFits } from './typed-startup-line'
+import { isWslShellName } from './local-windows-terminal-runtime'
 
 type StartupPlanInputs = Omit<
   Parameters<typeof buildAgentStartupPlan>[0],
@@ -76,13 +77,19 @@ export function planStartupWithLaunchPrompt(
   return { plan: pointed, launchFile: pointed?.launchFile ?? pointer.launchFile }
 }
 
-/** A local agent launched for a Linux runtime on a Windows host runs in WSL. */
+/** A local agent launched for a Linux runtime, or into a WSL shell, on a Windows host runs in WSL. */
 export function launchRunsInLocalWsl(args: {
   hostPlatform: NodeJS.Platform
   launchPlatform: NodeJS.Platform
   isRemote: boolean
+  /** The shell this PTY will be when the caller picked one; the write sites refuse a WSL one. */
+  shellOverride?: string
 }): boolean {
-  return args.hostPlatform === 'win32' && !args.isRemote && args.launchPlatform !== 'win32'
+  return (
+    args.hostPlatform === 'win32' &&
+    !args.isRemote &&
+    (args.launchPlatform !== 'win32' || isWslShellName(args.shellOverride))
+  )
 }
 
 /** Whether the host types this line as built: only POSIX hosts stage, and Hermes' fixed line reads

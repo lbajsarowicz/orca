@@ -28,6 +28,7 @@ import {
   type WrittenLaunchFile
 } from '../../shared/launch-file-writing'
 import { isWslUncPath } from '../../shared/wsl-paths'
+import { isWslShellName } from '../../shared/local-windows-terminal-runtime'
 
 export async function spawnLocalPty(
   args: PtySpawnOptions,
@@ -65,7 +66,7 @@ function writeLocalLaunchFile(args: PtySpawnOptions): WrittenLaunchFile | undefi
   }
   const wsl =
     process.platform === 'win32' &&
-    (args.shellOverride?.toLowerCase() === 'wsl.exe' || isWslUncPath(args.cwd ?? ''))
+    (isWslShellName(args.shellOverride) || isWslUncPath(args.cwd ?? ''))
   if (wsl) {
     // Why: an agent inside the distro cannot read a path in the Windows temp directory.
     throw new LaunchFileUnavailableError('not supported for WSL sessions')

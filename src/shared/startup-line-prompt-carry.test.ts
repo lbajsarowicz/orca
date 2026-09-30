@@ -175,6 +175,28 @@ describe('a launch prompt in a WSL session, which can neither stage nor read a l
       launchRunsInLocalWsl({ hostPlatform: 'darwin', launchPlatform: 'darwin', isRemote: false })
     ).toBe(false)
   })
+
+  // Why: `--shell wsl.exe` on a C:\ worktree keeps the Windows platform, but the write site refuses it.
+  it('is also a local launch into a WSL shell, however the shell is spelled', () => {
+    for (const shellOverride of ['wsl.exe', 'wsl', 'C:\\Windows\\System32\\wsl.exe']) {
+      expect(
+        launchRunsInLocalWsl({
+          hostPlatform: 'win32',
+          launchPlatform: 'win32',
+          isRemote: false,
+          shellOverride
+        })
+      ).toBe(true)
+    }
+    expect(
+      launchRunsInLocalWsl({
+        hostPlatform: 'win32',
+        launchPlatform: 'win32',
+        isRemote: false,
+        shellOverride: 'powershell.exe'
+      })
+    ).toBe(false)
+  })
 })
 
 describe('whether a line can be typed as it is', () => {
