@@ -20,7 +20,8 @@ import {
   createSetupBeforeAgentGate,
   persistGatedSetupSpawnFailure,
   persistWorkerReadinessStage,
-  persistWorkerSetupWaitOutcome
+  persistWorkerSetupWaitOutcome,
+  remainingLaunchObservationMs
 } from './worker-setup-gate'
 import { failWorkerStartWithReceipt } from './worker-start-receipt'
 import { parseTaskDeps } from './task-deps-argument'
@@ -146,6 +147,7 @@ export async function startLocalWorker(args: {
   let failedStage = 'terminal_create'
   const timeoutMs = params.timeoutMs ?? 60_000
   let gatedSetupReceipt: WorkerSetupReceipt | undefined
+  let setupGateStartedAt: number | undefined
   const awaitSetupBeforeAgent = createSetupBeforeAgentGate({
     runtime,
     db,
@@ -157,6 +159,7 @@ export async function startLocalWorker(args: {
     },
     onSetupReceipt: (setup) => {
       gatedSetupReceipt = setup
+      setupGateStartedAt = Date.now()
     }
   })
   try {
@@ -284,6 +287,7 @@ export async function startLocalWorker(args: {
       effects,
       terminalRevealWarning: placed.warning,
       launchBrief: placed.launchBrief,
+      launchObservationTimeoutMs: remainingLaunchObservationMs(timeoutMs, setupGateStartedAt),
       onStage: (stage) => {
         failedStage = stage
       }

@@ -46,6 +46,8 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
   terminalRevealWarning: string | undefined
   /** The brief already rode the agent's launch line; nothing is pasted. */
   launchBrief: WorkerLaunchBrief | null
+  /** What is left of the start's budget for a launched brief's turn start (setup shared it). */
+  launchObservationTimeoutMs: number
   /** Keeps the caller's failure receipt naming the stage that actually failed. */
   onStage: (stage: 'dispatch_input' | 'turn_observation') => void
 }): Promise<unknown> {
@@ -86,7 +88,7 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
         terminalHandle,
         agent: args.agent,
         launchStartedAt: args.launchBrief.launchStartedAt,
-        timeoutMs: args.timeoutMs
+        timeoutMs: args.launchObservationTimeoutMs
       })
     : (delivery.structuredTurnStart ??
       (await observeWorkerTurnStart({ runtime, terminalHandle, prompt: promptDelivery })))

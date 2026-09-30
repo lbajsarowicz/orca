@@ -36,7 +36,8 @@ vi.mock('./orchestration/worker/worker-setup-gate', () => ({
   createSetupBeforeAgentGate: () => async () => {},
   persistGatedSetupSpawnFailure: () => false,
   persistWorkerReadinessStage: () => {},
-  persistWorkerSetupWaitOutcome: () => {}
+  persistWorkerSetupWaitOutcome: () => {},
+  remainingLaunchObservationMs: (timeoutMs: number) => timeoutMs
 }))
 vi.mock('./orchestration/worker/worker-start-receipt', () => ({
   failWorkerStartWithReceipt: (args: { failedStage: string }) => ({

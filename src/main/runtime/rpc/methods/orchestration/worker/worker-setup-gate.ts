@@ -1,4 +1,5 @@
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
+import { AGENT_PROMPT_EFFECT_TIMEOUT_MS } from '../../../../../../shared/orchestration-timing-budgets'
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import { awaitStructuredWorkerSetupGate } from './worker-start-structured-setup-gate'
 import {
@@ -113,4 +114,18 @@ export function createSetupBeforeAgentGate(args: {
       }
     }
   }
+}
+
+/**
+ * What a launched brief's turn start may still wait once the setup gate has run: setup and turn
+ * share one start budget, as setup and agent boot did when the brief was pasted. The floor keeps
+ * the turn the window a pasted brief always had.
+ */
+export function remainingLaunchObservationMs(
+  timeoutMs: number,
+  setupGateStartedAt: number | undefined
+): number {
+  return setupGateStartedAt === undefined
+    ? timeoutMs
+    : Math.max(setupGateStartedAt + timeoutMs - Date.now(), AGENT_PROMPT_EFFECT_TIMEOUT_MS)
 }

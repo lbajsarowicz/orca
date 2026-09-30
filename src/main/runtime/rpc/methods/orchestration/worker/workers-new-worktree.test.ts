@@ -434,6 +434,36 @@ describe('orchestration new-worktree workers', () => {
     })
   })
 
+  // Why: setup and the launched brief's turn start share the start's one budget, never T + T.
+  it.each([
+    [20_000, 40_000],
+    [50_000, 30_000]
+  ])(
+    'after %i ms of setup, observes the launched turn for what is left (%i ms, never under 30 s)',
+    async (setupMs, observationMs) => {
+      mockCreatedWorktree({
+        startupPolicy: 'wait-for-setup',
+        state: 'running',
+        setupTerminalHandle: 'term_setup'
+      })
+      let now = 1_000_000
+      vi.spyOn(Date, 'now').mockImplementation(() => now)
+      vi.mocked(runtime.waitForSetupTerminalCompletion).mockImplementation(async () => {
+        now += setupMs
+        return { exitCode: 0 }
+      })
+
+      await startWorker({ timeoutMs: 60_000 })
+
+      expect(runtime.observeTerminalLaunchTurnStart).toHaveBeenCalledWith(
+        'term_worker',
+        expect.anything(),
+        observationMs,
+        expect.any(AbortSignal)
+      )
+    }
+  )
+
   it('records wait-for-setup success before the agent terminal is created', async () => {
     mockCreatedWorktree({
       startupPolicy: 'wait-for-setup',
