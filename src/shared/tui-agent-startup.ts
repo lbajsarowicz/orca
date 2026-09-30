@@ -11,9 +11,9 @@ import {
 } from './tui-agent-startup-shell'
 import type { LaunchFile } from './launch-prompt-file'
 import {
+  carryLaunchPrompt,
   launchFileDirectoryGrant,
   launchFileProps,
-  windowsPromptLaunchFile,
   windowsShellDamagesPrompt
 } from './startup-plan-launch-file'
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
@@ -48,7 +48,7 @@ function appliedSessionOptionProps(values: Record<string, SessionOptionValue>) {
   return Object.keys(values).length > 0 ? { sessionOptions: { ...values } } : {}
 }
 
-export function buildAgentStartupPlan(args: {
+export type AgentStartupPlanArgs = {
   agent: TuiAgent
   prompt: string
   cmdOverrides: Partial<Record<TuiAgent, string>>
@@ -67,7 +67,21 @@ export function buildAgentStartupPlan(args: {
   /** False for a paired host, which is sent a command and never a launch file: a prompt that would
    *  need one launches clean and is left in `followupPrompt` for the paste after ready. */
   hostWritesLaunchFile?: boolean
-}): AgentStartupPlan | null {
+  /** The caller minted a secret in the prompt: it rides a launch file, never argv or history. */
+  sensitive?: boolean
+  /** A WSL session can neither stage a long line nor read a launch file (`carryLaunchPrompt`). */
+  launchRunsInWsl?: boolean
+}
+
+/**
+ * The one place that decides whether a launch prompt rides the line, a launch file, or the paste
+ * after ready (`carryLaunchPrompt`); every launch path builds through it.
+ */
+export function buildAgentStartupPlan(args: AgentStartupPlanArgs): AgentStartupPlan | null {
+  return carryLaunchPrompt(args, buildPlanWithPromptOnLine)
+}
+
+function buildPlanWithPromptOnLine(args: AgentStartupPlanArgs): AgentStartupPlan | null {
   const { agent, prompt, cmdOverrides, platform, allowEmptyPromptLaunch = false } = args
   const shell = resolveStartupShell(platform, args.shell)
   const trimmedPrompt = prompt.trim()
@@ -95,28 +109,23 @@ export function buildAgentStartupPlan(args: {
     agentCommand: baseCommand.commandWithoutSessionOptions
   })
 
-  const lineFile = trimmedPrompt ? windowsPromptLaunchFile(trimmedPrompt, shell) : null
-  const pasteInstead =
-    lineFile !== null &&
-    args.hostWritesLaunchFile === false &&
-    config.promptInjectionMode !== 'hermes-query'
-  if (!trimmedPrompt || pasteInstead) {
-    if (!trimmedPrompt && !allowEmptyPromptLaunch) {
+  if (!trimmedPrompt) {
+    if (!allowEmptyPromptLaunch) {
       return null
     }
     return {
       agent,
       launchCommand,
       expectedProcess: config.expectedProcess,
-      followupPrompt: pasteInstead ? trimmedPrompt : null,
+      followupPrompt: null,
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
       ...(args.agentEnv ? { env: { ...args.agentEnv } } : {})
     }
   }
 
-  const launchFile = lineFile?.launchFile ?? args.launchFile
-  const quotedPrompt = quoteStartupArg(lineFile?.prompt ?? trimmedPrompt, shell)
+  const launchFile = args.launchFile
+  const quotedPrompt = quoteStartupArg(trimmedPrompt, shell)
   const fileProps = launchFileProps(launchFile, shell)
   const grant = launchFileDirectoryGrant(agent, launchFile, shell)
 

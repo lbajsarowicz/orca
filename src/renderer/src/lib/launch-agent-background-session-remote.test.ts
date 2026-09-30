@@ -155,6 +155,20 @@ describe('launchAgentBackgroundSession remote runtime and SSH startup delivery',
     )
   })
 
+  // Why: past the argv ceiling an automation prompt failed with "Argument list too long".
+  it('hands an automation prompt past the argv ceiling to the SSH host as a launch file', async () => {
+    state.repos = [{ id: 'repo-1', connectionId: 'ssh-1', path: '/repo' }]
+    const { launchAgentBackgroundSession } = await import('./launch-agent-background-session')
+    const prompt = 'z'.repeat(140_055)
+
+    await launchAgentBackgroundSession({ agent: 'claude', worktreeId: 'wt-1', prompt })
+
+    const spawned = mockSpawn.mock.calls[0]?.[0]
+    expect(spawned?.launchFile?.content).toBe(prompt)
+    expect(spawned?.command).toContain(spawned?.launchFile?.placeholder)
+    expect(spawned?.command.length).toBeLessThan(1_000)
+  })
+
   it.each(['claude', 'codex'] as const)(
     'has the relay type the %s launch line instead of writing it from the renderer',
     async (agent) => {

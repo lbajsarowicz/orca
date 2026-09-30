@@ -41,6 +41,8 @@ import { settleComposerSubmit } from '@/lib/composer-submit-cancellation'
 import { ensureHooksConfirmed } from '@/lib/ensure-hooks-confirmed'
 import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
 import { launchHostWritesLaunchFile } from '@/lib/launch-file-host'
+import { launchRunsInLocalWsl } from '../../../../shared/startup-line-prompt-carry'
+import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import { runBackgroundWorktreeCreation } from '@/lib/worktree-creation-flow'
 import { translate } from '@/i18n/i18n'
 import { resolveQuickCreateLinkedWorkItemPrompt } from '@/lib/linked-work-item-context'
@@ -141,6 +143,11 @@ export function useQuickCreationExecution(input: QuickCreationExecutionInput) {
         shell: selectedRepoStartupShell,
         isRemote: selectedRepoIsRemote,
         hostWritesLaunchFile: launchHostWritesLaunchFile(selectedRepoSettings),
+        launchRunsInWsl: launchRunsInLocalWsl({
+          hostPlatform: CLIENT_PLATFORM,
+          launchPlatform: selectedRepoAgentLaunchPlatform,
+          isRemote: selectedRepoIsRemote
+        }),
         telemetrySource
       })
 

@@ -1,5 +1,7 @@
 import { useAppStore } from '@/store'
 import { launchHostWritesLaunchFile } from '@/lib/launch-file-host'
+import { launchRunsInLocalWsl } from '../../../shared/startup-line-prompt-carry'
+import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import { buildAgentStartupPlan } from '@/lib/tui-agent-startup'
 import type {
   LaunchAgentBackgroundSessionArgs,
@@ -97,6 +99,14 @@ export async function launchAgentBackgroundSession(
     shell: startupShell,
     isRemote,
     hostWritesLaunchFile: launchHostWritesLaunchFile(ownerSettings),
+    launchRunsInWsl: launchRunsInLocalWsl({
+      hostPlatform: CLIENT_PLATFORM,
+      launchPlatform,
+      isRemote,
+      ...(!launchHost.connectionId && isWslUncPath(worktree.path)
+        ? { shellOverride: 'wsl.exe' }
+        : {})
+    }),
     allowEmptyPromptLaunch: !hasPrompt || isFollowupPath
   })
   if (!startupPlan) {

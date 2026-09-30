@@ -40,6 +40,8 @@ import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcrip
 import type { AgentStartedTelemetry } from '@/lib/worktree-startup-payload'
 import { tuiAgentToAgentKind } from '@/lib/telemetry'
 import { launchHostWritesLaunchFile } from '@/lib/launch-file-host'
+import { launchRunsInLocalWsl } from '../../../../shared/startup-line-prompt-carry'
+import { CLIENT_PLATFORM } from '@/lib/new-workspace'
 import type { PendingSmartGitHubSubmitResolution } from './source-selection-decisions'
 
 export function useFullSubmitPreparation(input: FullSubmitPreparationInput) {
@@ -203,7 +205,12 @@ export function useFullSubmitPreparation(input: FullSubmitPreparationInput) {
         platform: selectedRepoAgentLaunchPlatform,
         shell: selectedRepoStartupShell,
         isRemote: selectedRepoIsRemote,
-        hostWritesLaunchFile: launchHostWritesLaunchFile(selectedRepoSettings)
+        hostWritesLaunchFile: launchHostWritesLaunchFile(selectedRepoSettings),
+        launchRunsInWsl: launchRunsInLocalWsl({
+          hostPlatform: CLIENT_PLATFORM,
+          launchPlatform: selectedRepoAgentLaunchPlatform,
+          isRemote: selectedRepoIsRemote
+        })
       })
 
       const shouldSeedInitialAgentStatus =

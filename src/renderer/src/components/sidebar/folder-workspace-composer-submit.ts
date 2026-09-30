@@ -1,4 +1,8 @@
-import { ensureAgentStartupInTerminal, type LinkedWorkItemSummary } from '@/lib/new-workspace'
+import {
+  CLIENT_PLATFORM,
+  ensureAgentStartupInTerminal,
+  type LinkedWorkItemSummary
+} from '@/lib/new-workspace'
 import { seedNativeChatLaunchDraftForAgentTab } from '@/lib/agent-launch-prompt-delivery'
 import { preflightAgentTrust } from '@/lib/agent-trust-preflight'
 import { createBrowserUuid } from '@/lib/browser-uuid'
@@ -23,6 +27,7 @@ import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-a
 import { getNewWorkspaceProjectGroupHostId } from '@/lib/new-workspace-project-options'
 import { useAppStore } from '@/store'
 import { launchHostWritesLaunchFile } from '@/lib/launch-file-host'
+import { launchRunsInLocalWsl } from '../../../../shared/startup-line-prompt-carry'
 import {
   buildFolderWorkspaceLinkedStartupPlan,
   getFolderWorkspaceAgentLaunchPlatform,
@@ -127,6 +132,11 @@ export async function submitFolderWorkspaceCreate({
             isRemote: launchIsRemote,
             hostWritesLaunchFile: launchHostWritesLaunchFile({
               activeRuntimeEnvironmentId: runtimeEnvironmentId
+            }),
+            launchRunsInWsl: launchRunsInLocalWsl({
+              hostPlatform: CLIENT_PLATFORM,
+              launchPlatform,
+              isRemote: launchIsRemote
             }),
             allowEmptyPromptLaunch: true
           })

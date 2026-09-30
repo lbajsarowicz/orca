@@ -23,6 +23,7 @@ export type QuickComposerStartupInput = {
   shell: AgentStartupShell | null | undefined
   isRemote: boolean
   hostWritesLaunchFile: boolean
+  launchRunsInWsl: boolean
   telemetrySource: WorktreeCreationRequest['telemetrySource']
 }
 
@@ -93,6 +94,7 @@ export function buildQuickComposerStartup(input: QuickComposerStartupInput): Qui
       shell: input.shell ?? undefined,
       isRemote: input.isRemote,
       hostWritesLaunchFile: input.hostWritesLaunchFile,
+      launchRunsInWsl: input.launchRunsInWsl,
       allowEmptyPromptLaunch: true
     })
     if (startupPlan && draftPrompt) {

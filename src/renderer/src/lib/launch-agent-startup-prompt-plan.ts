@@ -87,14 +87,9 @@ export function planLaunchAgentStartupPrompt(args: {
   }
   const carried = planStartupWithLaunchPrompt(base, prompt, { wsl: args.launchesInLocalWsl })
   if (carried.promptLeftForPaste) {
-    // Temporary, until WSL reads launch files: keep the paste it had, or the full line.
-    return promptDelivery === 'submit-after-ready'
-      ? pasteAfterReady(true)
-      : {
-          startupPlan: buildAgentStartupPlan({ ...base, prompt }),
-          pasteDraftAfterLaunch: null,
-          submitPastedPrompt: false
-        }
+    // Temporary, until WSL reads launch files: a line it could not type is pasted, whatever the
+    // delivery; typed, it would stall at a continuation prompt and never start the agent.
+    return pasteAfterReady(true)
   }
   return {
     startupPlan: carried.plan,
