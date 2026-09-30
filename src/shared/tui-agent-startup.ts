@@ -47,6 +47,11 @@ function windowsLineBreakLaunchFile(prompt: string, shell: AgentStartupShell) {
     : null
 }
 
+/** The host writes the path inside this line's quoting, so the file carries which one it is. */
+function launchFileProps(launchFile: LaunchFile | undefined, shell: AgentStartupShell) {
+  return launchFile ? { launchFile: { ...launchFile, quoting: shell } } : {}
+}
+
 function appliedSessionOptionProps(values: Record<string, SessionOptionValue>) {
   return Object.keys(values).length > 0 ? { sessionOptions: { ...values } } : {}
 }
@@ -65,6 +70,8 @@ export function buildAgentStartupPlan(args: {
   /** Why: SSH remotes deploy the CLI shim as plain `orca`, so the Linux-only
    * `orca-ide` rename must be skipped for remote launches. */
   isRemote?: boolean
+  /** The file `prompt` points at, when the caller already moved the prompt into one. */
+  launchFile?: LaunchFile
 }): AgentStartupPlan | null {
   const { agent, prompt, cmdOverrides, platform, allowEmptyPromptLaunch = false } = args
   const shell = resolveStartupShell(platform, args.shell)
@@ -110,7 +117,7 @@ export function buildAgentStartupPlan(args: {
 
   const lineFile = windowsLineBreakLaunchFile(trimmedPrompt, shell)
   const quotedPrompt = quoteStartupArg(lineFile?.prompt ?? trimmedPrompt, shell)
-  const fileProps = lineFile ? { launchFile: lineFile.launchFile } : {}
+  const fileProps = launchFileProps(lineFile?.launchFile ?? args.launchFile, shell)
 
   if (config.promptInjectionMode === 'argv') {
     const promptSeparator = config.argvPromptSeparator ? ` ${config.argvPromptSeparator}` : ''
@@ -165,7 +172,9 @@ export function buildAgentStartupPlan(args: {
       followupPrompt: null,
       launchConfig,
       ...appliedSessionOptionProps(baseCommand.appliedSessionOptions),
-      ...(queryPlan.env ? { env: queryPlan.env } : {})
+      ...(queryPlan.env ? { env: queryPlan.env } : {}),
+      // Hermes reads its prompt from the env, where a line break is harmless.
+      ...launchFileProps(args.launchFile, shell)
     }
   }
 

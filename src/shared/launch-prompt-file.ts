@@ -4,6 +4,8 @@
  * pointing at it.
  */
 
+import type { AgentStartupShell } from './tui-agent-startup-shell'
+
 /** Keeps agent argv comfortably below the lowest practical OS command-line limit. */
 export const MAX_INLINE_LAUNCH_PROMPT_CHARS = 16_384
 
@@ -14,7 +16,12 @@ export type LaunchFile = {
   content: string
   /** Set by the caller that minted a secret in `content`; keeps it out of argv and shell history. */
   sensitive: boolean
+  /** How the launch line quoted the placeholder, set where the line is built; the host writes the
+   *  path inside that quoting. Absent, the host accepts only a path every quoting carries as is. */
+  quoting?: AgentStartupShell
 }
+
+const LAUNCH_LINE_QUOTINGS: readonly AgentStartupShell[] = ['posix', 'powershell', 'cmd']
 
 const PLACEHOLDER_PATTERN = /^orca-launch-file-[0-9a-f]{32}$/
 
@@ -60,13 +67,16 @@ export function parseLaunchFile(value: unknown): LaunchFile | undefined {
     return undefined
   }
   const { placeholder, content, sensitive } = value
+  const quoting = 'quoting' in value ? value.quoting : undefined
+  const knownQuoting = LAUNCH_LINE_QUOTINGS.find((candidate) => candidate === quoting)
   if (
     typeof placeholder !== 'string' ||
     !PLACEHOLDER_PATTERN.test(placeholder) ||
     typeof content !== 'string' ||
-    typeof sensitive !== 'boolean'
+    typeof sensitive !== 'boolean' ||
+    (quoting !== undefined && knownQuoting === undefined)
   ) {
     return undefined
   }
-  return { placeholder, content, sensitive }
+  return { placeholder, content, sensitive, ...(knownQuoting ? { quoting: knownQuoting } : {}) }
 }

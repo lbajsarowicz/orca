@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -89,6 +89,35 @@ describeOnWindows('cmd launch-line prompt quoting', () => {
       expect(args[0]).toContain(written.path)
       expect(readFileSync(written.path, 'utf8')).toBe(prompt)
       expect(existsSync(marker)).toBe(false)
+    } finally {
+      removeLaunchFile(written)
+    }
+  })
+
+  it('names a launch file under a home with an apostrophe, accents, CJK and `%`', async () => {
+    const home = join(dir, "O'Brien José 张伟 100%")
+    mkdirSync(home)
+    const plan = buildAgentStartupPlan({
+      agent: 'claude',
+      prompt: 'Fix the build\nthen run the tests',
+      cmdOverrides: { claude: shim },
+      platform: 'win32',
+      shell: 'cmd'
+    })
+    const launchFile = plan?.launchFile
+    if (!plan || !launchFile) {
+      throw new Error('a multi-line cmd prompt must ride a launch file')
+    }
+    const written = writeLaunchFile({
+      launchFile,
+      command: plan.launchCommand,
+      platform: 'win32',
+      baseDirectory: home
+    })
+    try {
+      const args = await typeIntoCmd(written.command ?? '')
+      expect(args).toHaveLength(1)
+      expect(args[0]).toContain(written.path)
     } finally {
       removeLaunchFile(written)
     }

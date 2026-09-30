@@ -240,18 +240,24 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
     })
     // A caller that wrote its own launch file already passes the pointer to it as the prompt.
     const prompt = opts.startupPrompt ?? ''
-    const planned: LaunchPromptStartupPlan = opts.launchFile
-      ? {
-          plan: buildAgentStartupPlan({ ...planInputs, prompt, allowEmptyPromptLaunch: true }),
-          launchFile: opts.launchFile
-        }
-      : planStartupWithLaunchPrompt(planInputs, prompt, {
-          wsl: launchRunsInLocalWsl({
-            hostPlatform: process.platform,
-            launchPlatform: platform,
-            isRemote
-          })
+    let planned: LaunchPromptStartupPlan
+    if (opts.launchFile) {
+      const plan = buildAgentStartupPlan({
+        ...planInputs,
+        prompt,
+        allowEmptyPromptLaunch: true,
+        launchFile: opts.launchFile
+      })
+      planned = { plan, launchFile: plan?.launchFile ?? opts.launchFile }
+    } else {
+      planned = planStartupWithLaunchPrompt(planInputs, prompt, {
+        wsl: launchRunsInLocalWsl({
+          hostPlatform: process.platform,
+          launchPlatform: platform,
+          isRemote
         })
+      })
+    }
     const { plan: startupPlan, launchFile } = planned
     if (!startupPlan) {
       // Why: an explicit agent that yields no plan would otherwise spawn a bare

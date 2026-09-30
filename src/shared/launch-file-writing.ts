@@ -7,6 +7,7 @@ import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { LaunchFile } from './launch-prompt-file'
+import { quoteStartupArg, type AgentStartupShell } from './tui-agent-startup-shell'
 
 const LAUNCH_FILE_DIR_PREFIX = 'orca-launch-file-'
 const LAUNCH_FILE_NAME = 'task-context.md'
@@ -14,10 +15,44 @@ const LAUNCH_FILE_NAME = 'task-context.md'
 /** A running agent may re-read its task file, so leftovers get a day, not an hour. */
 export const LAUNCH_FILE_STALE_MS = 24 * 60 * 60 * 1000
 
-// Why: the path replaces a placeholder inside an already-quoted argument, so it may only hold
-// characters that are literal in POSIX, PowerShell and cmd quoting alike.
-const QUOTE_INERT_POSIX_PATH = /^[A-Za-z0-9 _./:~+@=,-]+$/
-const QUOTE_INERT_WINDOWS_PATH = /^[A-Za-z0-9 _./:~+@=,\\-]+$/
+// Characters one of the three quotings ends or expands on: `'` (POSIX, PowerShell, which also
+// honours the typographic single quotes), `"` and `%` (cmd).
+const QUOTE_SENSITIVE_PATH_CHARACTER = /['"%\u2018-\u201b]/
+
+function hasControlCharacter(value: string): boolean {
+  return [...value].some((char) => char < ' ' || char === '\x7f')
+}
+
+/**
+ * The path as it must read inside the quoted run that held the placeholder, or null when that
+ * quoting cannot carry it. Letters in any script are literal in all three quotings.
+ */
+export function launchFilePathInQuotedRun(
+  path: string,
+  quoting: AgentStartupShell | undefined,
+  platform: NodeJS.Platform
+): string | null {
+  // No quoting keeps a typed line break or other control byte literal.
+  if (hasControlCharacter(path)) {
+    return null
+  }
+  if (quoting === 'posix') {
+    // The same escapes the POSIX quoter uses between its single-quoted runs.
+    return [...path]
+      .map((char) => (char === "'" ? `'"'"'` : char === '\\' ? `'"\\\\"'` : char))
+      .join('')
+  }
+  if (quoting === 'cmd') {
+    // No Windows path holds `"`; the quoter breaks `%` out of the run.
+    return path.includes('"') ? null : quoteStartupArg(path, 'cmd').slice(1, -1)
+  }
+  if (quoting === 'powershell') {
+    return quoteStartupArg(path, 'powershell').slice(1, -1)
+  }
+  const sensitive =
+    QUOTE_SENSITIVE_PATH_CHARACTER.test(path) || (platform !== 'win32' && path.includes('\\'))
+  return sensitive ? null : path
+}
 
 export class LaunchFileUnavailableError extends Error {
   constructor(reason: string) {
@@ -53,21 +88,22 @@ export function writeLaunchFile(args: {
   try {
     directory = mkdtempSync(join(baseDirectory, LAUNCH_FILE_DIR_PREFIX))
     const path = join(directory, LAUNCH_FILE_NAME)
-    const inert = platform === 'win32' ? QUOTE_INERT_WINDOWS_PATH : QUOTE_INERT_POSIX_PATH
-    if (!inert.test(path)) {
-      throw new LaunchFileUnavailableError('temp directory path needs quoting')
+    const quotedPath = launchFilePathInQuotedRun(path, args.launchFile.quoting, platform)
+    if (quotedPath === null) {
+      throw new LaunchFileUnavailableError('temp directory path cannot be quoted')
     }
     writeFileSync(path, args.launchFile.content, { mode: 0o600, flag: 'wx' })
-    const substitute = (value: string): string =>
-      value.replaceAll(args.launchFile.placeholder, path)
+    // Why a function: a string replacement would expand `$'` and `$&` inside the path.
+    const substitute = (value: string, replacement: string): string =>
+      value.replaceAll(args.launchFile.placeholder, () => replacement)
     return {
       directory,
       path,
-      ...(args.command !== undefined ? { command: substitute(args.command) } : {}),
+      ...(args.command !== undefined ? { command: substitute(args.command, quotedPath) } : {}),
       ...(args.env
         ? {
             env: Object.fromEntries(
-              Object.entries(args.env).map(([key, value]) => [key, substitute(value)])
+              Object.entries(args.env).map(([key, value]) => [key, substitute(value, path)])
             )
           }
         : {})

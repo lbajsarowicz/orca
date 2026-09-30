@@ -9,6 +9,7 @@
 
 import { describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from './orca-runtime'
+import { carryInLaunchFile } from '../../shared/launch-prompt-file'
 
 vi.mock('electron', () => ({
   BrowserWindow: { fromId: vi.fn(() => null) },
@@ -86,9 +87,22 @@ describe('a terminal create that is handed a launch prompt', () => {
     await runtime.createTerminal('id:wt-1', { startupAgent: 'claude', startupPrompt: prompt })
 
     const launchFile = spawn.mock.calls[0]?.[0]?.launchFile
-    expect(launchFile).toMatchObject({ content: prompt, sensitive: false })
+    expect(launchFile).toMatchObject({ content: prompt, sensitive: false, quoting: 'posix' })
     expect(spawnedCommand(spawn)).toContain(launchFile.placeholder)
     expect(spawnedCommand(spawn)).not.toContain('xxxx')
+  })
+
+  it('tells the host how the line quoted a launch file its caller wrote', async () => {
+    const { runtime, spawn } = runtimeWithAgentLaunch()
+    const { prompt, launchFile } = carryInLaunchFile('worker brief', true)
+
+    await runtime.createTerminal('id:wt-1', {
+      startupAgent: 'claude',
+      startupPrompt: prompt,
+      launchFile
+    })
+
+    expect(spawn.mock.calls[0]?.[0]?.launchFile).toEqual({ ...launchFile, quoting: 'posix' })
   })
 
   it('points Hermes at a launch file rather than starting it clean past its env budget', async () => {

@@ -38,8 +38,13 @@ export function planStartupWithLaunchPrompt(
   prompt: string,
   options: { sensitive?: boolean; wsl?: boolean } = {}
 ): LaunchPromptStartupPlan {
-  const build = (text: string): AgentStartupPlan | null =>
-    buildAgentStartupPlan({ ...inputs, prompt: text, allowEmptyPromptLaunch: true })
+  const build = (text: string, launchFile?: LaunchFile): AgentStartupPlan | null =>
+    buildAgentStartupPlan({
+      ...inputs,
+      prompt: text,
+      allowEmptyPromptLaunch: true,
+      ...(launchFile ? { launchFile } : {})
+    })
   const text = prompt.trim()
   // An agent that takes its text only after start has no line to carry it; its caller pastes.
   if (!text || !agentPromptRidesLaunchCommand(inputs.agent)) {
@@ -52,9 +57,9 @@ export function planStartupWithLaunchPrompt(
       : { plan: build(''), promptLeftForPaste: true }
   }
   const planned = planLaunchPrompt(text, options)
-  const plan = build(planned.prompt)
+  const plan = build(planned.prompt, planned.launchFile)
   // The builder itself moves a Windows prompt with a line break into a launch file.
-  const launchFile = planned.launchFile ?? plan?.launchFile
+  const launchFile = plan?.launchFile ?? planned.launchFile
   if (launchFile) {
     return { plan, launchFile }
   }
@@ -62,7 +67,8 @@ export function planStartupWithLaunchPrompt(
     return { plan }
   }
   const pointer = carryInLaunchFile(text, false)
-  return { plan: build(pointer.prompt), launchFile: pointer.launchFile }
+  const pointed = build(pointer.prompt, pointer.launchFile)
+  return { plan: pointed, launchFile: pointed?.launchFile ?? pointer.launchFile }
 }
 
 /** A local agent launched for a Linux runtime on a Windows host runs in WSL. */
