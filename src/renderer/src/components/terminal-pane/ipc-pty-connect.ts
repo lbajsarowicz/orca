@@ -191,9 +191,11 @@ function handleConnectError(
   if (message.includes('was explicitly killed')) {
     return undefined
   }
-  if (options.launchFile && isLaunchFileUnavailableMessage(message)) {
+  // Why the transport's file: the spawn sends it unless the connect call named its own command.
+  const { launchFile } = context.transportOptions
+  if (launchFile && !options.command && isLaunchFileUnavailableMessage(message)) {
     // The pane gets no shell; the notice holds the only copy of the prompt.
-    showAgentLaunchNotStartedNotice({ prompt: options.launchFile.content })
+    showAgentLaunchNotStartedNotice({ prompt: launchFile.content })
   }
   if (connectionId && options.sessionId && message.includes(SSH_PTY_CONNECTION_MISMATCH_MARKER)) {
     // Why not `sessionExpired`: this string is minted by `toRelaySshPtyId`/`toAppSshPtyId` from a
