@@ -222,7 +222,11 @@ async function spawnAndPublishSession(
     // Diagnostics must never turn a live PTY into a failed create.
   }
   if (startupCommandWritten && command) {
-    staging = stageStartupCommand({ command, shellPath: subprocess.shellPath })
+    staging = stageStartupCommand({
+      command,
+      shellPath: subprocess.shellPath,
+      orcaBuiltLine: opts.launchAgent !== undefined
+    })
     const notice = startupStagingFailureNotice(staging)
     if (notice) {
       session.startupIngress.accept(notice)

@@ -2119,7 +2119,8 @@ export class PtyHandler {
     if (managed.startupCommand?.providerDelivery && managed.startupCommand.command) {
       managed.stagedStartupCommand = stageStartupCommand({
         command: managed.startupCommand.command,
-        shellPath: shell
+        shellPath: shell,
+        orcaBuiltLine: launchAgent !== undefined
       })
       if (managed.stagedStartupCommand.failure) {
         process.stderr.write(

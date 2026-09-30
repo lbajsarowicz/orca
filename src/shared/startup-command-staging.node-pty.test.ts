@@ -89,7 +89,12 @@ async function launchInRealShell(
   const caseDir = mkdtempSync(join(SANDBOX, `${shell.name}-`))
   const capture = join(caseDir, 'argv')
   const command = prepare(`${quoteStartupArg(AGENT, 'posix')} ${quoteStartupArg(prompt, 'posix')}`)
-  const staging = stageStartupCommand({ command, shellPath: shell.path, directory: caseDir })
+  const staging = stageStartupCommand({
+    command,
+    shellPath: shell.path,
+    orcaBuiltLine: true,
+    directory: caseDir
+  })
   const proc = pty.spawn(shell.path, shell.args, {
     name: 'xterm-256color',
     cols: 120,
