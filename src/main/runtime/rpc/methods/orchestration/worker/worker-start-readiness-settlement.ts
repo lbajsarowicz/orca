@@ -110,12 +110,12 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
       kind: 'dispatch_input',
       role: 'agent',
       id: terminalHandle,
-      state: 'turn_unobserved'
+      state: turnStart.blockedReason ? 'turn_blocked' : 'turn_unobserved'
     })
     const reason = turnStart.reason ?? describeUnobservedWorkerTurnStart(args.agent)
     const worker = db.markWorkerStartUnknown(
       args.dispatchId,
-      'turn_start_unobserved',
+      turnStart.blockedReason ? 'turn_start_blocked' : 'turn_start_unobserved',
       reason,
       effects
     )

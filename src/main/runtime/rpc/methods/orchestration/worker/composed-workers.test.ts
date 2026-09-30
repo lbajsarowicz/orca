@@ -504,7 +504,8 @@ describe('orchestration RPC methods', () => {
       ['codex-trust-workspace', 'codex-trust-workspace (agent-trust-workspace)'],
       ['agent-trust-workspace', 'agent-trust-workspace']
     ] as const)(
-      'returns a truthful readiness failure for %s',
+      // Why not failed: the brief already rode the launch line, so answering the dialog runs it.
+      'reports a start blocked on %s as unknown, not failed',
       async (blockedReason, expectedReason) => {
         setup()
         mockCurrentWorkerStart()
@@ -527,11 +528,12 @@ describe('orchestration RPC methods', () => {
         })
 
         expect(result).toMatchObject({
-          state: 'failed',
-          failedStage: 'turn_observation',
-          lastError: `Agent startup blocked: ${expectedReason}`,
+          state: 'outcome_unknown',
+          stage: 'turn_start_blocked',
+          lastError: expect.stringContaining(`Agent startup blocked: ${expectedReason}.`),
           residualResources: [expect.objectContaining({ id: 'term_worker' })]
         })
+        expect(result).not.toHaveProperty('recovery')
         expect(runtime.sendTerminalAgentPrompt).not.toHaveBeenCalled()
       }
     )

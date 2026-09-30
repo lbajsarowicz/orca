@@ -576,7 +576,7 @@ describe('orchestration new-worktree workers', () => {
     })
 
     mockCreatedWorktree()
-    // A startup dialog holds the launch turn; the watch beside it fails the start.
+    // A startup dialog holds the launch turn: unknown, since answering it runs the brief.
     vi.mocked(runtime.observeTerminalLaunchTurnStart).mockReturnValueOnce(new Promise(() => {}))
     vi.mocked(runtime.waitForTerminal).mockResolvedValueOnce({
       handle: 'term_worker',
@@ -588,8 +588,8 @@ describe('orchestration new-worktree workers', () => {
     })
     const durableEffect = await startWorker({ name: 'durable-effect' })
     expect(durableEffect.result).toMatchObject({
-      state: 'failed',
-      failedStage: 'turn_observation',
+      state: 'outcome_unknown',
+      stage: 'turn_start_blocked',
       effects: expect.arrayContaining([
         expect.objectContaining({ kind: 'worktree', id: 'repo::created' }),
         expect.objectContaining({ kind: 'terminal', id: 'term_worker' })

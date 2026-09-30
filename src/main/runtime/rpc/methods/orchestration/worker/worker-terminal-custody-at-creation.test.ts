@@ -152,10 +152,23 @@ describe('worker terminal custody is recorded at terminal creation', () => {
     await held.start
   })
 
-  it.each([
-    ['codex', 'turn_observation'],
-    ['aider', 'agent_readiness']
-  ] as const)(
+  // Why codex differs: its brief is already on its launch line, so answering the dialog runs it.
+  it('keeps a codex start blocked at boot unknown, still owning the terminal the brief runs in', async () => {
+    h.setup()
+    const held = await startHeldAtBootWait({ agent: 'codex' })
+    held.finish(false)
+
+    await expect(held.start).resolves.toMatchObject({
+      state: 'outcome_unknown',
+      stage: 'turn_start_blocked'
+    })
+    expect(h.db.getWorkerTerminalResourceByOwner(held.dispatchId)).toMatchObject({
+      ownership_state: 'owned',
+      terminal_handle: 'term_worker'
+    })
+  })
+
+  it.each([['aider', 'agent_readiness']] as const)(
     'leaves a %s start that died at boot a terminal worker-release can close',
     async (agent, failedStage) => {
       h.setup()
