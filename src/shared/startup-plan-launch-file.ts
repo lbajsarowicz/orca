@@ -13,19 +13,37 @@ import {
   type AgentStartupShell
 } from './tui-agent-startup-shell'
 import { windowsTypedStartupLineFits, wslTypedStartupLineFits } from './typed-startup-line'
+import {
+  quotePowerShellNativeArgument,
+  withLegacyNativeArgumentPassing
+} from './powershell-native-argument'
 import type { TuiAgent } from './tui-agent'
 
 /**
  * Whether a Windows shell would damage `prompt` typed as one quoted argument. cmd and PowerShell have
  * no bracketed paste, so a line break submits the line early and hands the rest to the shell as
- * commands. PowerShell's legacy native-argument passing (5.1 always, 7.x calling a `.cmd` shim)
- * leaves an inner `"` unescaped, so the agent gets the prompt split into several arguments.
+ * commands. PowerShell 5.1 turns a trailing backslash plus the quote it adds into a literal `"`, and
+ * 7.x's legacy mode doubles it instead, so no one spelling survives both (measured).
  */
 export function windowsShellDamagesPrompt(prompt: string, shell: AgentStartupShell): boolean {
   if (isPosixStartupShell(shell)) {
     return false
   }
-  return /[\r\n]/.test(prompt) || (shell === 'powershell' && prompt.includes('"'))
+  return /[\r\n]/.test(prompt) || (shell === 'powershell' && prompt.endsWith('\\'))
+}
+
+/**
+ * How a prompt is quoted on a launch line, and what the line needs around it. PowerShell passes an
+ * inner `"` unescaped in its legacy mode (5.1 always, 7.x through a `.cmd` shim), splitting the
+ * prompt; escaped for argv and run under legacy passing, it arrives whole in both.
+ */
+export function promptOnLaunchLine(
+  prompt: string,
+  shell: AgentStartupShell
+): { quoted: string; line: (line: string) => string } {
+  return shell === 'powershell' && prompt.includes('"')
+    ? { quoted: quotePowerShellNativeArgument(prompt), line: withLegacyNativeArgumentPassing }
+    : { quoted: quoteStartupArg(prompt, shell), line: (line) => line }
 }
 
 /** Why a prefill draft could not be launched, in the user's words, when the Windows shell is why. */
