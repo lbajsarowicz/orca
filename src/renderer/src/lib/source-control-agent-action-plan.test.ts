@@ -42,6 +42,19 @@ describe('planSourceControlAgentActionLaunch', () => {
     expect(result.ok && result.caveat).toContain('PATH')
   })
 
+  it('says an input past the argv ceiling goes in a private file, not on the command line', () => {
+    const result = planSourceControlAgentActionLaunch({
+      agent: 'codex',
+      commandInput: 'z'.repeat(200_000),
+      promptDelivery: 'submit-after-ready',
+      detectedAgents: ['codex'],
+      platform: 'linux'
+    })
+
+    expect(result.ok && result.summary).toContain('private file')
+    expect(result.ok && result.summary).not.toContain('included in the launch command')
+  })
+
   it('includes per-action CLI arguments in submit-after-ready launch plans', () => {
     const result = planSourceControlAgentActionLaunch({
       agent: 'codex',
