@@ -268,6 +268,20 @@ describe('maybeAutoRenameBranchOnFirstWork', () => {
     expect(generateBranchNameMock).toHaveBeenCalledTimes(1)
   })
 
+  it('names the branch from the prompt a launch file carried, when main kept it', async () => {
+    const { deps, onRenamed } = makeDeps({ getLaunchFilePrompt: () => 'Fix auth from note #1' })
+    await maybeAutoRenameBranchOnFirstWork(
+      workingEvent({ prompt: buildLaunchFilePointer('/tmp/orca-launch-file-a1/task-context.md') }),
+      deps
+    )
+    expect(generateBranchNameMock).toHaveBeenCalledWith(
+      expect.objectContaining({ firstPrompt: 'Fix auth from note #1' }),
+      expect.anything(),
+      expect.anything()
+    )
+    expect(onRenamed).toHaveBeenCalled()
+  })
+
   it('asks to align the on-disk folder with the generated slug after renaming', async () => {
     const { deps, renameWorktreeFolder } = makeDeps()
     await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)

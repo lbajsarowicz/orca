@@ -1,3 +1,4 @@
+import { rememberLaunchFilePrompt } from '../../../agent-hooks/launch-file-prompt-by-pane'
 import { getAppEnvironment } from '../../../../shared/app-environment'
 import { getLegacyOpenCodeEnvKeysToDelete } from '../../../opencode/legacy-shared-config-dir'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
@@ -94,6 +95,9 @@ export async function buildPtyIpcSpawnOptions(
       : undefined
   if (launchFile) {
     ctx.spawnOptions.launchFile = launchFile
+    if (ctx.reservationPaneKey) {
+      rememberLaunchFilePrompt(ctx.reservationPaneKey, launchFile)
+    }
   }
   if (isTuiAgent(args.launchAgent)) {
     ctx.spawnOptions.launchAgent = args.launchAgent

@@ -68,6 +68,8 @@ export type FirstWorkBranchRenameDeps = {
   resolveWorktreeIdForTab: (tabId: string) => string | undefined
   /** Invalidate caches + notify the renderer so the new branch name surfaces. */
   onRenamed: (repoId: string) => void
+  /** The prompt a launch file carried for this pane, when its hook reports only the pointer. */
+  getLaunchFilePrompt?: (paneKey: string) => string | undefined
 }
 
 // inFlight blocks concurrent generation; settled caches definitive verdicts (transient bails stay unsettled to retry later).
@@ -115,10 +117,15 @@ export async function maybeAutoRenameBranchOnFirstWork(
   if (settledWorktreeIds.has(worktreeId) || inFlightWorktreeIds.has(worktreeId)) {
     return
   }
-  const prompt = event.prompt?.trim()
+  const hookPrompt = event.prompt?.trim()
   // Why the pointer: a launch that carried its prompt in a file names only that file here, which
-  // would name the branch after "read the task file"; a later prompt of the user's own can.
-  if (!prompt || isLaunchFilePointer(prompt)) {
+  // would name the branch after "read the task file". Its real prompt, when main kept it, names it
+  // instead; otherwise (a worker brief) a later prompt of the user's own can.
+  const prompt =
+    hookPrompt && isLaunchFilePointer(hookPrompt)
+      ? deps.getLaunchFilePrompt?.(event.paneKey)?.trim()
+      : hookPrompt
+  if (!prompt) {
     return
   }
   inFlightWorktreeIds.add(worktreeId)
