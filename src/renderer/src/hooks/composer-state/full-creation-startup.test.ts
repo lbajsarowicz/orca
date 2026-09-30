@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildAgentStartupPlan } from '@/lib/tui-agent-startup'
 import { buildFullCreationStartup } from './full-creation-startup'
+import { tuiAgentToAgentKind } from '../../../../shared/agent-kind'
 
 describe('the full composer’s renderer-spawned startup', () => {
   // Why: SSH repos, folder repos, repos with default tabs and a failed backend spawn all take this
@@ -20,7 +21,7 @@ describe('the full composer’s renderer-spawned startup', () => {
       shouldSeedInitialAgentStatus: false,
       prompt: 'x'.repeat(200_000),
       telemetry: {
-        agent_kind: 'claude',
+        agent_kind: tuiAgentToAgentKind('claude'),
         launch_source: 'new_workspace_composer',
         request_kind: 'new'
       }
