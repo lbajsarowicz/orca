@@ -30,10 +30,23 @@ export function launchFileDirectoryPlaceholder(placeholder: string): string {
   return placeholder.replace(/^orca-launch-file-/, 'orca-launch-dir-')
 }
 
+const POINTER_LEAD = 'The full task is in the file `'
+const POINTER_TAIL = '`. Read it and complete the task it describes.'
+
 // Why backticks, not quotes: PowerShell's legacy native-argument passing splits an argument at an
 // inner `"`, while a backtick is literal in every shell's quoting and to the agent's argv parser.
 export function buildLaunchFilePointer(path: string): string {
-  return `The full task is in the file \`${path}\`. Read it and complete the task it describes.`
+  return `${POINTER_LEAD}${path}${POINTER_TAIL}`
+}
+
+/** Whether an agent's prompt is Orca's pointer to a launch file rather than the user's own words. */
+export function isLaunchFilePointer(prompt: string): boolean {
+  const trimmed = prompt.trim()
+  return (
+    trimmed.startsWith(POINTER_LEAD) &&
+    trimmed.endsWith(POINTER_TAIL) &&
+    trimmed.length > POINTER_LEAD.length + POINTER_TAIL.length
+  )
 }
 
 /**

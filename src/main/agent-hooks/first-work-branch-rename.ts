@@ -1,4 +1,5 @@
 // On first agent work in a fresh workspace, replace the auto-generated creature branch (e.g. `you/Nautilus`) with a short work-derived name.
+import { isLaunchFilePointer } from '../../shared/launch-prompt-file'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import type { Repo } from '../../shared/repo-types'
 import { isFolderRepo } from '../../shared/repo-kind'
@@ -115,7 +116,9 @@ export async function maybeAutoRenameBranchOnFirstWork(
     return
   }
   const prompt = event.prompt?.trim()
-  if (!prompt) {
+  // Why the pointer: a launch that carried its prompt in a file names only that file here, which
+  // would name the branch after "read the task file"; a later prompt of the user's own can.
+  if (!prompt || isLaunchFilePointer(prompt)) {
     return
   }
   inFlightWorktreeIds.add(worktreeId)

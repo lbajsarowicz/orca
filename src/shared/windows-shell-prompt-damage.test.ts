@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildLaunchFilePointer } from './launch-prompt-file'
+import { buildLaunchFilePointer, isLaunchFilePointer } from './launch-prompt-file'
 import { buildAgentDraftLaunchPlan, buildAgentStartupPlan } from './tui-agent-startup'
 import type { AgentStartupShell } from './tui-agent-startup-shell'
 
@@ -58,5 +58,11 @@ describe('a prompt a Windows shell would damage on the launch line', () => {
     expect(startup?.launchFile).toBeUndefined()
     expect(startup?.launchCommand).toBe('claude')
     expect(startup?.followupPrompt).toBe('fix the build\nthen run the tests')
+  })
+
+  it('tells its own pointer apart from a prompt that merely mentions one', () => {
+    expect(isLaunchFilePointer(buildLaunchFilePointer('C:\\Temp\\a b\\task-context.md'))).toBe(true)
+    expect(isLaunchFilePointer('The full task is in the file `x`. Read it and do it.')).toBe(false)
+    expect(isLaunchFilePointer('fix the build')).toBe(false)
   })
 })

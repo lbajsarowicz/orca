@@ -1,3 +1,4 @@
+import { buildLaunchFilePointer } from '../../shared/launch-prompt-file'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import type { Repo } from '../../shared/repo-types'
@@ -252,6 +253,19 @@ describe('maybeAutoRenameBranchOnFirstWork', () => {
     )
     expect(setDisplayName).toHaveBeenCalledWith(WORKTREE_ID, 'Fix auth')
     expect(onRenamed).toHaveBeenCalledWith(REPO_ID)
+  })
+
+  it('never names the branch after a launch-file pointer, and still renames on a later prompt', async () => {
+    const { deps, onRenamed } = makeDeps()
+    await maybeAutoRenameBranchOnFirstWork(
+      workingEvent({ prompt: buildLaunchFilePointer('/tmp/orca-launch-file-a1/task-context.md') }),
+      deps
+    )
+    expect(generateBranchNameMock).not.toHaveBeenCalled()
+    expect(onRenamed).not.toHaveBeenCalled()
+
+    await maybeAutoRenameBranchOnFirstWork(workingEvent({ prompt: 'Fix auth from note #1' }), deps)
+    expect(generateBranchNameMock).toHaveBeenCalledTimes(1)
   })
 
   it('asks to align the on-disk folder with the generated slug after renaming', async () => {
