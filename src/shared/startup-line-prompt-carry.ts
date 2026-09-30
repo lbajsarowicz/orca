@@ -63,7 +63,12 @@ export function planStartupWithLaunchPrompt(
   if (launchFile) {
     return { plan, launchFile }
   }
-  if (!plan || !typesUnstaged(inputs) || windowsTypedStartupLineFits(plan.launchCommand)) {
+  // Hermes refuses a prompt past its env budget (bytes, so CJK text reaches it under 16,384 chars).
+  const hermesOverBudget = !plan && readsPromptFromEnv(inputs)
+  if (
+    !hermesOverBudget &&
+    (!plan || !typesUnstaged(inputs) || windowsTypedStartupLineFits(plan.launchCommand))
+  ) {
     return { plan }
   }
   const pointer = carryInLaunchFile(text, false)

@@ -108,6 +108,14 @@ describe('a launch prompt on the command line', () => {
     expect(Object.values(startup?.env ?? {}).join('')).toContain(launchFile?.placeholder)
   })
 
+  it('points Hermes at a launch file for CJK text under 16,384 chars but past its env bytes', () => {
+    const cjk = '修'.repeat(9_000)
+    const { plan: startup, launchFile } = plan('hermes', cjk)
+    expect(startup).not.toBeNull()
+    expect(launchFile?.content).toBe(cjk)
+    expect(Object.values(startup?.env ?? {}).join('')).toContain(launchFile?.placeholder)
+  })
+
   it('leaves a stdin-after-start agent’s prompt for its caller to paste', () => {
     const { plan: startup, launchFile } = plan('aider', 'fix it')
     expect(launchFile).toBeUndefined()
