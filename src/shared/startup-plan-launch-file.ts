@@ -25,6 +25,15 @@ export function windowsShellDamagesPrompt(prompt: string, shell: AgentStartupShe
   return /[\r\n]/.test(prompt) || (shell === 'powershell' && prompt.includes('"'))
 }
 
+/** Why a prefill draft could not be launched, in the user's words, when the Windows shell is why. */
+export function windowsDraftRefusal(draft: string, shell: AgentStartupShell): string | null {
+  return windowsShellDamagesPrompt(draft.trim(), shell)
+    ? "The host's Windows shell would break this draft on the agent's command line (it has a line " +
+        'break or a double quote), so the agent was not started. Start it without the draft and ' +
+        'paste the draft once it opens.'
+    : null
+}
+
 export function windowsPromptLaunchFile(prompt: string, shell: AgentStartupShell) {
   return windowsShellDamagesPrompt(prompt, shell) ? carryInLaunchFile(prompt, false) : null
 }

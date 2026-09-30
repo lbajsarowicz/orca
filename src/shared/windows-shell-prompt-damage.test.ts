@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildLaunchFilePointer, isLaunchFilePointer } from './launch-prompt-file'
 import { buildAgentDraftLaunchPlan, buildAgentStartupPlan } from './tui-agent-startup'
 import type { AgentStartupShell } from './tui-agent-startup-shell'
+import { windowsDraftRefusal } from './startup-plan-launch-file'
 
 function plan(prompt: string, shell: AgentStartupShell) {
   return buildAgentStartupPlan({
@@ -64,5 +65,13 @@ describe('a prompt a Windows shell would damage on the launch line', () => {
     expect(isLaunchFilePointer(buildLaunchFilePointer('C:\\Temp\\a b\\task-context.md'))).toBe(true)
     expect(isLaunchFilePointer('The full task is in the file `x`. Read it and do it.')).toBe(false)
     expect(isLaunchFilePointer('fix the build')).toBe(false)
+  })
+
+  it('says in plain words why a Windows shell draft was not launched', () => {
+    expect(windowsDraftRefusal('line one\nline two', 'powershell')).toMatch(
+      /Windows shell would break this draft.*agent was not started/
+    )
+    expect(windowsDraftRefusal('say "hi"', 'cmd')).toBeNull()
+    expect(windowsDraftRefusal('line one\nline two', 'posix')).toBeNull()
   })
 })
