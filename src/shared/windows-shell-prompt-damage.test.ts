@@ -98,8 +98,10 @@ describe('a prompt a Windows shell would damage on the launch line', () => {
 
   it('says in plain words why a Windows shell draft was not launched', () => {
     expect(windowsDraftRefusal('line one\nline two', 'powershell')).toMatch(
-      /Windows shell would break this draft.*agent was not started/
+      /Windows shell would break this draft on the agent's command line \(it has a line break, or ends in a backslash on PowerShell\), so the agent was not started/
     )
+    expect(windowsDraftRefusal('see C:\\dir\\', 'powershell')).not.toBeNull()
+    expect(windowsDraftRefusal('say "hi"', 'powershell')).toBeNull()
     expect(windowsDraftRefusal('say "hi"', 'cmd')).toBeNull()
     expect(windowsDraftRefusal('line one\nline two', 'posix')).toBeNull()
   })
