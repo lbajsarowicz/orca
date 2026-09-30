@@ -125,13 +125,28 @@ describe('worker-start with the brief on the launch command line', () => {
       })
     })
 
-    it('stays unknown when it never shows readiness', async () => {
+    it('stays unknown, saying what it did not see, when it shows nothing at all', async () => {
       h.setup()
       vi.mocked(h.runtime.waitForTerminal).mockRejectedValue(new Error('timeout'))
+      vi.spyOn(h.runtime, 'waitForTerminalLaunchWorking').mockResolvedValue(false)
       await expect(startGemini('silent gemini')).resolves.toMatchObject({
         state: 'outcome_unknown',
         turnStart: 'unobserved',
-        lastError: expect.stringContaining('reports no turn start')
+        lastError: expect.stringContaining('no readiness, no turn of its own and no startup dialog')
+      })
+    })
+
+    // Why: Gemini's first hook event is `working`, and an agent busy on its argv prompt paints no
+    // idle screen until the turn ends, so the readiness wait alone runs out on a working agent.
+    it('is ready once its own hook reports a turn after the launch, with no idle screen', async () => {
+      h.setup()
+      vi.mocked(h.runtime.waitForTerminal).mockImplementation(
+        () => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 50))
+      )
+      vi.spyOn(h.runtime, 'waitForTerminalLaunchWorking').mockResolvedValue(true)
+      await expect(startGemini('busy gemini')).resolves.toMatchObject({
+        state: 'ready',
+        turnStart: 'unsupported'
       })
     })
   })

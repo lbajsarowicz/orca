@@ -141,6 +141,42 @@ export class OrcaRuntimeWithAgentPromptRequestCorrelation extends OrcaRuntimeWit
     }
   }
 
+  /**
+   * Whether the agent's own hook reported a turn that began after the launch. For an agent whose
+   * hook carries no prompt this is the evidence it is running what it was launched with; asking
+   * for an approval counts too.
+   */
+  async waitForTerminalLaunchWorking(
+    handle: string,
+    launchStartedAt: number,
+    timeoutMs: number,
+    signal?: AbortSignal
+  ): Promise<boolean> {
+    const { ptyId } = this.getTerminalPromptRequestBinding(handle)
+    try {
+      await verifyAgentPromptSubmission({
+        baseline: {
+          ...this.getAgentPromptActivity(handle, ptyId),
+          explicitWorkingStartedAt: launchStartedAt
+        },
+        readActivity: () => this.getAgentPromptActivity(handle, ptyId),
+        hookWorkingOnly: true,
+        signal,
+        timeoutMs
+      })
+      return true
+    } catch (error) {
+      const message = error instanceof Error ? error.message : ''
+      if (message === 'agent_prompt_blocked') {
+        return true
+      }
+      if (['agent_prompt_stalled', 'terminal_handle_stale', 'request_aborted'].includes(message)) {
+        return false
+      }
+      throw error
+    }
+  }
+
   protected registerAgentPromptRequest(
     ptyId: string,
     generation: number,

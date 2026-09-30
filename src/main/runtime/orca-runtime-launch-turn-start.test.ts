@@ -99,3 +99,26 @@ describe('observeTerminalLaunchTurnStart', () => {
     ).resolves.toBe('unsupported')
   })
 })
+
+describe('waitForTerminalLaunchWorking', () => {
+  it('sees a hook turn that began after the launch, prompt or not', async () => {
+    let rows: AgentStatusIpcPayload[] = []
+    const { runtime, handle } = await launchedCodex(() => rows)
+    const launchStartedAt = Date.now() - 10
+    rows = [workingRow(handle, Date.now())]
+
+    await expect(runtime.waitForTerminalLaunchWorking(handle, launchStartedAt, 300)).resolves.toBe(
+      true
+    )
+  })
+
+  it('does not count a turn that was already running before the launch', async () => {
+    let rows: AgentStatusIpcPayload[] = []
+    const { runtime, handle } = await launchedCodex(() => rows)
+    const before = Date.now() - 1_000
+    rows = [workingRow(handle, before)]
+    await expect(runtime.waitForTerminalLaunchWorking(handle, before + 500, 300)).resolves.toBe(
+      false
+    )
+  })
+})

@@ -138,7 +138,13 @@ export async function observeWorkerLaunchTurnStart(args: {
     }
     if (verdict === 'unsupported') {
       controller.abort()
-      return await awaitUnsupportedLaunchReadiness(runtime, terminalHandle, args.agent, deadline)
+      return await awaitUnsupportedLaunchStart(
+        runtime,
+        terminalHandle,
+        args.agent,
+        args.launchStartedAt,
+        deadline
+      )
     }
     // Why: a dialog already on screen outranks any verdict short of an observed turn.
     const blockedReason = await settledOrNull(dialog)
@@ -188,21 +194,58 @@ async function watchForStartupDialog(
  * evidence, as it was before a paste: ready or blocked. No readiness in the window stays unknown,
  * since the agent may already be working on the brief it was launched with.
  */
-async function awaitUnsupportedLaunchReadiness(
+async function awaitUnsupportedLaunchStart(
   runtime: OrcaRuntimeService,
   terminalHandle: string,
   agent: TuiAgent | null,
+  launchStartedAt: number,
   deadline: number
 ): Promise<WorkerTurnStartObservation> {
   const timeoutMs = Math.max(1, deadline - Date.now())
+  const controller = new AbortController()
+  // Why both: an agent that starts on its argv prompt at once shows no idle screen until the turn
+  // ends, and tui-idle reads its own `working` hook as not ready; that hook turn is the evidence.
+  const working = runtime
+    .waitForTerminalLaunchWorking(terminalHandle, launchStartedAt, timeoutMs, controller.signal)
+    .catch(() => false)
+  const readiness = readLaunchReadiness(
+    runtime,
+    terminalHandle,
+    agent,
+    timeoutMs,
+    controller.signal
+  )
+  try {
+    const first = await Promise.race([
+      working.then((started) => ({ started })),
+      readiness.then((observation) => ({ observation }))
+    ])
+    if ('observation' in first) {
+      return first.observation
+    }
+    return first.started ? { verdict: 'unsupported' } : await readiness
+  } finally {
+    controller.abort()
+    readiness.catch(() => {})
+  }
+}
+
+async function readLaunchReadiness(
+  runtime: OrcaRuntimeService,
+  terminalHandle: string,
+  agent: TuiAgent | null,
+  timeoutMs: number,
+  signal: AbortSignal
+): Promise<WorkerTurnStartObservation> {
   let wait: RuntimeTerminalWait | undefined
   try {
     wait = agent
-      ? await waitForLaunchedAgentComposer(runtime, terminalHandle, agent, timeoutMs)
+      ? await waitForLaunchedAgentComposer(runtime, terminalHandle, agent, timeoutMs, signal)
       : await runtime.waitForTerminal(terminalHandle, {
           condition: 'tui-idle',
           timeoutMs,
-          launchReadiness: true
+          launchReadiness: true,
+          signal
         })
   } catch {
     return { verdict: 'unobserved', reason: describeUnreadyWorkerLaunch(agent, timeoutMs) }
@@ -242,9 +285,9 @@ function describeUnobservedWorkerLaunch(agent: string | null, windowMs: number):
 
 function describeUnreadyWorkerLaunch(agent: string | null, windowMs: number): string {
   return (
-    `The task rode ${agent ?? 'the agent'}'s launch command line. This agent reports no turn ` +
-    `start, and it showed neither readiness nor a startup dialog within ` +
-    `${Math.round(windowMs / 1000)}s. This is unverifiable, not proof the worker is dead: it may ` +
+    `The task rode ${agent ?? 'the agent'}'s launch command line. This agent reports no prompt ` +
+    `hook, and within ${Math.round(windowMs / 1000)}s it showed no readiness, no turn of its ` +
+    'own and no startup dialog. This is unverifiable, not proof the worker is dead: it may ' +
     'already be working on the task. If the worker reports, this Dispatch settles normally.'
   )
 }

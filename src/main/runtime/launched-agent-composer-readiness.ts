@@ -41,7 +41,8 @@ export async function waitForLaunchedAgentComposer(
   runtime: LaunchedAgentReadinessRuntime,
   handle: string,
   agent: TuiAgent,
-  timeoutMs: number
+  timeoutMs: number,
+  signal?: AbortSignal
 ): Promise<RuntimeTerminalWait | undefined> {
   if (COMPOSER_MARKER_READINESS_AGENTS.has(agent)) {
     await runtime.waitForFreshWorkerComposer(handle, agent, timeoutMs, {
@@ -53,6 +54,7 @@ export async function waitForLaunchedAgentComposer(
   return runtime.waitForTerminal(handle, {
     condition: 'tui-idle',
     timeoutMs,
-    launchReadiness: true
+    launchReadiness: true,
+    ...(signal ? { signal } : {})
   })
 }

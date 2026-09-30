@@ -48,6 +48,9 @@ type AgentPromptVerificationOptions = {
   /** Accept only a hook turn whose event carried a prompt, after the baseline's; a title edge, a
    *  prompt-less start or output bytes prove nothing about a launch prompt. */
   explicitPromptOnly?: boolean
+  /** Accept only a hook turn that began after the baseline's, prompt or not: the agent's own
+   *  account that it is running, for an agent whose hook carries no prompt. */
+  hookWorkingOnly?: boolean
   signal?: AbortSignal
   timeoutMs?: number
 }
@@ -126,8 +129,12 @@ function agentPromptEffectAccepted(
     acceptTurnStart,
     allowHookEvidence = true,
     allowOutputEvidence = true,
-    explicitPromptOnly = false
+    explicitPromptOnly = false,
+    hookWorkingOnly = false
   } = options
+  if (hookWorkingOnly) {
+    return observedHookWorkingAfterBaseline(baseline, current)
+  }
   if (explicitPromptOnly) {
     return (
       current.explicitPromptStartedAt !== null &&
