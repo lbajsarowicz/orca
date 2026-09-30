@@ -12,6 +12,9 @@ import {
 } from '../../../../../../shared/execution-host'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 
+/** `ambiguous` is a refusal, not a host: rival repo rows disagree about where the worktree runs. */
+export type WorkerStartExecutionHostId = ExecutionHostId | 'ambiguous'
+
 /** Refuses `--max-load` with `--on`: only the execution host reads its own load. */
 export function assertMaxLoadNotCombinedWithOn(params: { maxLoad?: number; on?: string }): void {
   if (params.maxLoad === undefined || !params.on) {
@@ -29,11 +32,17 @@ export function assertMaxLoadNotCombinedWithOn(params: { maxLoad?: number; on?: 
  */
 export function assertHostLoadPermitsWorkerStart(
   params: { maxLoad?: number },
-  executionHostId: ExecutionHostId | undefined,
+  executionHostId: WorkerStartExecutionHostId | undefined,
   sampleHostLoad: () => HostLoadSample = collectHostLoad
 ): void {
   if (params.maxLoad === undefined) {
     return
+  }
+  if (executionHostId === 'ambiguous') {
+    throw new OrchestrationError(
+      'invalid_argument',
+      '--max-load cannot be applied: the worktree host could not be resolved unambiguously. Start the worker without --max-load.'
+    )
   }
   // Why: this runtime cannot read a connected server's load, so its verdict is only the Run home's.
   if (executionHostId !== undefined && executionHostId !== LOCAL_EXECUTION_HOST_ID) {

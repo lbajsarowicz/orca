@@ -29,12 +29,16 @@ import { tearDownFailedWorkerStart } from './failed-worker-start-teardown'
 import { requireWorkerAuthority, type WorkerEffect } from './worker-topology'
 import { prepareLocalWorkerStart } from './worker-start-validation'
 import { deliverAndSettleWorkerStartReadiness } from './worker-start-readiness-settlement'
-import { assertHostLoadPermitsWorkerStart } from './worker-start-host-load'
+import {
+  assertHostLoadPermitsWorkerStart,
+  type WorkerStartExecutionHostId
+} from './worker-start-host-load'
 import {
   getRepoExecutionHostId,
-  getWorktreeExecutionHostId,
+  LOCAL_EXECUTION_HOST_ID,
   type ExecutionHostId
 } from '../../../../../../shared/execution-host'
+import { resolveWorktreeHostRouting } from '../../../../worktree-launch-host-repo'
 
 type WorkerStartMutation = {
   callerFingerprint: string
@@ -291,7 +295,7 @@ async function resolveWorkerStartExecutionHostId(
     resolvedWorktree: { repoId: string; hostId?: ExecutionHostId } | undefined
     repoSelector: string | undefined
   }
-): Promise<ExecutionHostId | undefined> {
+): Promise<WorkerStartExecutionHostId | undefined> {
   if (args.creationWorktree) {
     const repo = await runtime.showRepo(args.repoSelector ?? args.creationWorktree.repoId)
     return getRepoExecutionHostId(repo)
@@ -300,6 +304,10 @@ async function resolveWorkerStartExecutionHostId(
   if (!worktree) {
     return undefined
   }
-  const repo = runtime.listRepos().find((candidate) => candidate.id === worktree.repoId)
-  return getWorktreeExecutionHostId(worktree, repo)
+  // A hostless snapshot can still be remote via a legacy row; rival rows must refuse, not guess local.
+  const routing = resolveWorktreeHostRouting(runtime.listRepos(), worktree)
+  if (routing.kind === 'ambiguous') {
+    return 'ambiguous'
+  }
+  return routing.kind === 'resolved' ? routing.hostId : LOCAL_EXECUTION_HOST_ID
 }

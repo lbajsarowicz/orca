@@ -31,6 +31,27 @@ describe('worker-start --max-load host load gate', () => {
     })
   }
 
+  function mockLegacyWorktree(): void {
+    vi.mocked(harness.runtime.showManagedTerminalWorkspace).mockResolvedValue({
+      id: 'repo::worktree',
+      repoId: 'repo'
+    })
+  }
+
+  function repoRow(overrides: {
+    id: string
+    connectionId?: string
+    executionHostId?: `ssh:${string}` | `runtime:${string}` | 'local'
+  }) {
+    return {
+      path: '/remote/worktree',
+      displayName: 'repo',
+      badgeColor: '#000000',
+      addedAt: 0,
+      ...overrides
+    }
+  }
+
   async function startWithMaxLoad(maxLoad: number, extra: Record<string, unknown> = {}) {
     const task = harness.db.createTask({
       spec: 'heavy: integration tests',
@@ -112,6 +133,59 @@ describe('worker-start --max-load host load gate', () => {
         .prepare('SELECT COUNT(*) AS rows FROM dispatch_contexts WHERE task_id = ?')
         .get(task.id)
     ).toEqual({ rows: 0 })
+  })
+
+  it('refuses a legacy worktree whose only repo row carries an SSH connection', async () => {
+    const loadavg = vi.spyOn(os, 'loadavg')
+    mockLegacyWorktree()
+    vi.spyOn(harness.runtime, 'listRepos').mockReturnValue([
+      repoRow({ id: 'repo', connectionId: 'build-box' })
+    ])
+    const { task, result } = await startWithMaxLoad(0.7)
+
+    await expect(result).rejects.toMatchObject({
+      code: 'invalid_argument',
+      message:
+        "--max-load samples the Run home load only; the resolved worktree runs on ssh:build-box. Start the worker on that host's own Orca, or omit --max-load."
+    })
+    expect(loadavg).not.toHaveBeenCalled()
+    expect(
+      harness.db.db
+        .prepare('SELECT COUNT(*) AS rows FROM dispatch_contexts WHERE task_id = ?')
+        .get(task.id)
+    ).toEqual({ rows: 0 })
+  })
+
+  it('refuses as ambiguous when rival same-id repo rows disagree about the host', async () => {
+    const loadavg = vi.spyOn(os, 'loadavg')
+    mockLegacyWorktree()
+    vi.spyOn(harness.runtime, 'listRepos').mockReturnValue([
+      repoRow({ id: 'repo', executionHostId: 'ssh:one' }),
+      repoRow({ id: 'repo', executionHostId: 'ssh:two' })
+    ])
+    const { task, result } = await startWithMaxLoad(0.7)
+
+    await expect(result).rejects.toMatchObject({
+      code: 'invalid_argument',
+      message:
+        '--max-load cannot be applied: the worktree host could not be resolved unambiguously. Start the worker without --max-load.'
+    })
+    expect(loadavg).not.toHaveBeenCalled()
+    expect(
+      harness.db.db
+        .prepare('SELECT COUNT(*) AS rows FROM dispatch_contexts WHERE task_id = ?')
+        .get(task.id)
+    ).toEqual({ rows: 0 })
+  })
+
+  it('samples the Run home load for a worktree no repo row carries', async () => {
+    mockLegacyWorktree()
+    vi.spyOn(harness.runtime, 'listRepos').mockReturnValue([])
+    mockHostLoad(4, 8)
+    const { result } = await startWithMaxLoad(0.7)
+
+    await expect(result).resolves.toMatchObject({ state: 'ready' })
+    expect(vi.mocked(os.loadavg)).toHaveBeenCalled()
   })
 
   it('samples the Run home load for a worktree on this host', async () => {
