@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { isValidMaxLoad } from '../host-load-gate'
 import { OptionalFiniteNumber, OptionalString, requiredString } from './rpc-param-primitives'
 
 export const OptionalWorkerLaunchPreference = z
@@ -31,9 +32,17 @@ export const WorkerStartParams = z
     effort: OptionalWorkerLaunchPreference,
     retryOf: OptionalString,
     timeoutMs: OptionalFiniteNumber,
+    maxLoad: OptionalFiniteNumber,
     devMode: z.boolean().optional()
   })
   .superRefine((params, ctx) => {
+    if (params.maxLoad !== undefined && !isValidMaxLoad(params.maxLoad)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['maxLoad'],
+        message: '--max-load must be a positive ratio of 1-minute load average to CPU cores'
+      })
+    }
     if (!params.task && !params.spec) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

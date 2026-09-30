@@ -1,0 +1,103 @@
+import os from 'node:os'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  HOST_LOAD_EXCEEDED_CODE,
+  HOST_LOAD_EXCEEDED_NEXT_STEPS
+} from '../../../../../../shared/host-load-gate'
+import { OrchestrationError } from '../../../../orchestration/orchestration-error'
+import { createOrchestrationWorkerReleaseHarness } from './worker-release.test-support'
+
+describe('worker-start --max-load host load gate', () => {
+  const harness = createOrchestrationWorkerReleaseHarness()
+  beforeEach(() => harness.setup())
+  afterEach(() => harness.cleanup())
+
+  const idleCore: os.CpuInfo = {
+    model: 'test',
+    speed: 0,
+    times: { user: 0, nice: 0, sys: 0, idle: 0, irq: 0 }
+  }
+
+  function mockHostLoad(loadAverage1m: number, cores: number): void {
+    vi.spyOn(os, 'loadavg').mockReturnValue([loadAverage1m, 0, 0])
+    vi.spyOn(os, 'cpus').mockReturnValue(Array.from({ length: cores }, () => idleCore))
+  }
+
+  async function startWithMaxLoad(maxLoad: number, extra: Record<string, unknown> = {}) {
+    const task = harness.db.createTask({
+      spec: 'heavy: integration tests',
+      runId: harness.activeRunId
+    })
+    return {
+      task,
+      result: harness.call('orchestration.workerStart', {
+        task: task.id,
+        from: 'term_coord',
+        agent: 'codex',
+        maxLoad,
+        ...extra
+      })
+    }
+  }
+
+  it('refuses before creating any Dispatch while the per-core load is above the ratio', async () => {
+    mockHostLoad(12, 8)
+    const { task, result } = await startWithMaxLoad(0.7)
+
+    await expect(result).rejects.toMatchObject({
+      code: HOST_LOAD_EXCEEDED_CODE,
+      message:
+        'Host load 1.50 per core (1-minute average 12.00 on 8 cores) exceeds --max-load 0.7. No effects were applied.',
+      data: {
+        effectsApplied: false,
+        cpuCoreCount: 8,
+        loadAverage1m: 12,
+        loadRatio: 1.5,
+        maxLoad: 0.7,
+        nextSteps: [...HOST_LOAD_EXCEEDED_NEXT_STEPS]
+      }
+    })
+    expect(harness.db.getTask(task.id)?.status).toBe('ready')
+    expect(
+      harness.db.db
+        .prepare('SELECT COUNT(*) AS rows FROM dispatch_contexts WHERE task_id = ?')
+        .get(task.id)
+    ).toEqual({ rows: 0 })
+  })
+
+  it('starts the worker once the per-core load is within the ratio', async () => {
+    mockHostLoad(4, 8)
+    const { task, result } = await startWithMaxLoad(0.7)
+
+    await expect(result).resolves.toMatchObject({ taskId: task.id, state: 'ready' })
+  })
+
+  it('starts the worker without a gate when --max-load is omitted', async () => {
+    mockHostLoad(64, 8)
+
+    await expect(harness.startWorker()).resolves.toMatchObject({ dispatchId: expect.any(String) })
+  })
+
+  it('rejects the flag for a remote start instead of gating on the wrong host', async () => {
+    mockHostLoad(0, 8)
+    const { result } = await startWithMaxLoad(0.7, { on: 'build-box', worktree: 'new-top-level' })
+
+    await expect(result).rejects.toMatchObject({
+      code: 'invalid_argument',
+      message: '--max-load gates workers on the Run home only; it cannot combine with --on.'
+    })
+  })
+
+  it('rejects a non-positive ratio at the schema boundary', async () => {
+    const { result } = await startWithMaxLoad(0)
+
+    await expect(result).rejects.toThrow(/--max-load must be a positive ratio/)
+  })
+
+  it('surfaces the refusal as a typed OrchestrationError', async () => {
+    mockHostLoad(9, 1)
+    const { result } = await startWithMaxLoad(2)
+
+    await expect(result).rejects.toBeInstanceOf(OrchestrationError)
+  })
+})
