@@ -3,6 +3,7 @@ import { isBracketedPasteSafeShell } from '../../shared/startup-command-submissi
 import {
   discardStagedStartupCommand,
   stageStartupCommand,
+  startupStagingFailureNotice,
   type StartupCommandStaging
 } from '../../shared/startup-command-staging'
 import { removeLaunchFile, type WrittenLaunchFile } from '../../shared/launch-file-writing'
@@ -189,7 +190,9 @@ export function activateLocalPtySession(args: {
         waitsForShellReady: plan.shellReadyLaunch?.supportsReadyMarker === true
       })
     staging = stageStartupCommand({ command: spawn.command, shellPath: plan.shellPath })
-    if (staging.failure) {
+    const notice = startupStagingFailureNotice(staging)
+    if (notice) {
+      startupIngress.accept(notice)
       console.warn(`[pty] Could not stage startup command for ${id}; typing it in full`, {
         reason: staging.failure
       })
@@ -215,7 +218,6 @@ export function activateLocalPtySession(args: {
     incarnationId,
     pid,
     ...(exitedBeforeSpawnReply ? { exitedBeforeSpawnReply: true } : {}),
-    ...(spawnedWslDistro !== undefined ? { wslDistro: spawnedWslDistro } : {}),
-    ...(staging ? { startupDelivery: { line: staging.delivery } } : {})
+    ...(spawnedWslDistro !== undefined ? { wslDistro: spawnedWslDistro } : {})
   }
 }

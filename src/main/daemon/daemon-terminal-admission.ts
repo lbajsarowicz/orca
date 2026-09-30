@@ -167,8 +167,7 @@ export class DaemonTerminalAdmission {
       ...(result.agentSessionEnsure ? { agentSessionEnsure: result.agentSessionEnsure } : {}),
       ...(result.cwdReadableByDaemon !== undefined
         ? { cwdReadableByDaemon: result.cwdReadableByDaemon }
-        : {}),
-      ...(result.startupDelivery ? { startupDelivery: result.startupDelivery } : {})
+        : {})
     }
   }
 

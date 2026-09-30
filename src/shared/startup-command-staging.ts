@@ -11,11 +11,13 @@ import { randomBytes } from 'node:crypto'
 import { readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { StartupLineDelivery } from './startup-delivery-report'
 import { quoteStartupArg } from './tui-agent-startup-shell'
 import { typedStartupLineFits } from './typed-startup-line'
 
 export const STAGED_STARTUP_COMMAND_PREFIX = 'orca-launch-'
+
+/** Which delivery ran for a spawn's typed startup line, decided by the host that owns the PTY. */
+export type StartupLineDelivery = 'typed' | 'staged' | 'typed-after-stage-failed'
 
 /** Age past which a staged script is a crash leftover rather than another host's in-flight launch. */
 export const STAGED_STARTUP_COMMAND_STALE_MS = 60 * 60 * 1000
@@ -97,6 +99,20 @@ export function stageStartupCommand(args: {
     delivery: 'staged',
     scriptPath
   }
+}
+
+/**
+ * The line the host prints to the terminal when staging failed: the full line it types instead may
+ * leave the shell waiting for more input, and nothing else would tell the user why.
+ */
+export function startupStagingFailureNotice(staging: StartupCommandStaging): string | null {
+  if (staging.failure === undefined) {
+    return null
+  }
+  const reason = [...staging.failure]
+    .map((char) => (char < ' ' || char === '\x7f' ? ' ' : char))
+    .join('')
+  return `\r\n[orca] Could not stage the launch command (${reason}); typed it in full. If the shell shows quote> or waits for more input, press Ctrl-C and launch again.\r\n`
 }
 
 /** For a PTY that exited, or was never typed into, before it sourced its script. */
