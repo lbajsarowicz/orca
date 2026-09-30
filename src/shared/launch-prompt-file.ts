@@ -25,6 +25,11 @@ const LAUNCH_LINE_QUOTINGS: readonly AgentStartupShell[] = ['posix', 'powershell
 
 const PLACEHOLDER_PATTERN = /^orca-launch-file-[0-9a-f]{32}$/
 
+/** Stands in for the launch file's directory, which some agents must be granted to read it. */
+export function launchFileDirectoryPlaceholder(placeholder: string): string {
+  return placeholder.replace(/^orca-launch-file-/, 'orca-launch-dir-')
+}
+
 export function buildLaunchFilePointer(path: string): string {
   return `The full task is in the file "${path}". Read it and complete the task it describes.`
 }

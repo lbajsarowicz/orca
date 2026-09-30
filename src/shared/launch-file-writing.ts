@@ -6,7 +6,7 @@
 import { mkdtempSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { LaunchFile } from './launch-prompt-file'
+import { launchFileDirectoryPlaceholder, type LaunchFile } from './launch-prompt-file'
 import { quoteStartupArg, type AgentStartupShell } from './tui-agent-startup-shell'
 
 const LAUNCH_FILE_DIR_PREFIX = 'orca-launch-file-'
@@ -89,21 +89,30 @@ export function writeLaunchFile(args: {
     directory = mkdtempSync(join(baseDirectory, LAUNCH_FILE_DIR_PREFIX))
     const path = join(directory, LAUNCH_FILE_NAME)
     const quotedPath = launchFilePathInQuotedRun(path, args.launchFile.quoting, platform)
-    if (quotedPath === null) {
+    const quotedDirectory = launchFilePathInQuotedRun(directory, args.launchFile.quoting, platform)
+    if (quotedPath === null || quotedDirectory === null) {
       throw new LaunchFileUnavailableError('temp directory path cannot be quoted')
     }
     writeFileSync(path, args.launchFile.content, { mode: 0o600, flag: 'wx' })
-    // Why a function: a string replacement would expand `$'` and `$&` inside the path.
-    const substitute = (value: string, replacement: string): string =>
-      value.replaceAll(args.launchFile.placeholder, () => replacement)
+    const directoryPlaceholder = launchFileDirectoryPlaceholder(args.launchFile.placeholder)
+    // Why functions: a string replacement would expand `$'` and `$&` inside the path.
+    const substitute = (value: string, filePath: string, directoryPath: string): string =>
+      value
+        .replaceAll(args.launchFile.placeholder, () => filePath)
+        .replaceAll(directoryPlaceholder, () => directoryPath)
     return {
       directory,
       path,
-      ...(args.command !== undefined ? { command: substitute(args.command, quotedPath) } : {}),
+      ...(args.command !== undefined
+        ? { command: substitute(args.command, quotedPath, quotedDirectory) }
+        : {}),
       ...(args.env
         ? {
             env: Object.fromEntries(
-              Object.entries(args.env).map(([key, value]) => [key, substitute(value, path)])
+              Object.entries(args.env).map(([key, value]) => [
+                key,
+                substitute(value, path, directory)
+              ])
             )
           }
         : {})

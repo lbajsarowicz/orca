@@ -10,7 +10,12 @@ import {
   resolveStartupShell,
   type AgentStartupShell
 } from './tui-agent-startup-shell'
-import { carryInLaunchFile, type LaunchFile } from './launch-prompt-file'
+import type { LaunchFile } from './launch-prompt-file'
+import {
+  launchFileDirectoryGrant,
+  launchFileProps,
+  windowsLineBreakLaunchFile
+} from './startup-plan-launch-file'
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
 import type { StartupCommandDelivery } from './codex-startup-delivery'
 import { buildSleepingAgentLaunchConfig } from './sleeping-agent-launch-config'
@@ -37,19 +42,6 @@ export type AgentStartupPlan = {
   sessionOptions?: Record<string, SessionOptionValue>
   /** Holds the prompt the command points at; the host writes it before typing the command. */
   launchFile?: LaunchFile
-}
-
-/** Why: cmd and PowerShell have no bracketed paste, so a line break typed inside a prompt submits
- *  the line early and hands the rest to the shell as commands. */
-function windowsLineBreakLaunchFile(prompt: string, shell: AgentStartupShell) {
-  return !isPosixStartupShell(shell) && /[\r\n]/.test(prompt)
-    ? carryInLaunchFile(prompt, false)
-    : null
-}
-
-/** The host writes the path inside this line's quoting, so the file carries which one it is. */
-function launchFileProps(launchFile: LaunchFile | undefined, shell: AgentStartupShell) {
-  return launchFile ? { launchFile: { ...launchFile, quoting: shell } } : {}
 }
 
 function appliedSessionOptionProps(values: Record<string, SessionOptionValue>) {
@@ -116,8 +108,10 @@ export function buildAgentStartupPlan(args: {
   }
 
   const lineFile = windowsLineBreakLaunchFile(trimmedPrompt, shell)
+  const launchFile = lineFile?.launchFile ?? args.launchFile
   const quotedPrompt = quoteStartupArg(lineFile?.prompt ?? trimmedPrompt, shell)
-  const fileProps = launchFileProps(lineFile?.launchFile ?? args.launchFile, shell)
+  const fileProps = launchFileProps(launchFile, shell)
+  const grant = launchFileDirectoryGrant(agent, launchFile, shell)
 
   if (config.promptInjectionMode === 'argv') {
     const promptSeparator = config.argvPromptSeparator ? ` ${config.argvPromptSeparator}` : ''
@@ -125,8 +119,12 @@ export function buildAgentStartupPlan(args: {
       agent,
       launchCommand:
         agent === 'omp'
-          ? withFreshOmpLaunch(baseCommand.command, shell, `${promptSeparator} ${quotedPrompt}`)
-          : `${launchCommand}${promptSeparator} ${quotedPrompt}`,
+          ? withFreshOmpLaunch(
+              baseCommand.command,
+              shell,
+              `${grant}${promptSeparator} ${quotedPrompt}`
+            )
+          : `${launchCommand}${grant}${promptSeparator} ${quotedPrompt}`,
       expectedProcess: config.expectedProcess,
       followupPrompt: null,
       launchConfig,
@@ -140,7 +138,7 @@ export function buildAgentStartupPlan(args: {
   if (config.promptInjectionMode === 'flag-prompt') {
     return {
       agent,
-      launchCommand: `${launchCommand} --prompt ${quotedPrompt}`,
+      launchCommand: `${launchCommand}${grant} --prompt ${quotedPrompt}`,
       expectedProcess: config.expectedProcess,
       followupPrompt: null,
       launchConfig,
@@ -181,7 +179,7 @@ export function buildAgentStartupPlan(args: {
   if (config.promptInjectionMode === 'flag-prompt-interactive') {
     return {
       agent,
-      launchCommand: `${launchCommand} --prompt-interactive ${quotedPrompt}`,
+      launchCommand: `${launchCommand}${grant} --prompt-interactive ${quotedPrompt}`,
       expectedProcess: config.expectedProcess,
       followupPrompt: null,
       launchConfig,
@@ -194,7 +192,7 @@ export function buildAgentStartupPlan(args: {
   if (config.promptInjectionMode === 'flag-interactive') {
     return {
       agent,
-      launchCommand: `${launchCommand} -i ${quotedPrompt}`,
+      launchCommand: `${launchCommand}${grant} -i ${quotedPrompt}`,
       expectedProcess: config.expectedProcess,
       followupPrompt: null,
       launchConfig,
